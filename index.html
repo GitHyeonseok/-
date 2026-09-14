@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>투자 관리 및 대바닥 알리미</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Apple SD Gothic Neo', sans-serif; margin: 0; padding: 16px; background-color: #f8f9fa; color: #333; }
+        .card { background: white; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 1.1rem; color: #1a73e8; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem; background: #eef3fc; padding: 10px; border-radius: 8px; }
+        label { display: block; margin-top: 8px; font-size: 0.85rem; color: #666; }
+        input, button { width: 100%; padding: 10px; margin-top: 4px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background-color: #1a73e8; color: white; border: none; font-weight: bold; margin-top: 12px; cursor: pointer; }
+        button.secondary { background-color: #6c757d; }
+        .badge { display: inline-block; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; }
+        .badge-green { background: #e6f4ea; color: #137333; }
+        .badge-red { background: #fce8e6; color: #c5221f; }
+        .badge-yellow { background: #fef7e0; color: #b06000; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 파이썬 자동 수집 데이터 표시 -->
+    <div class="card">
+        <h2>🌐 자동 수집 시황 데이터</h2>
+        <div class="info-grid">
+            <div>QQQ 현재가: <b id="qqqPrice">-</b></div>
+            <div>원/달러 환율: <b id="fxRate">-</b> 원</div>
+            <div>QQQ 120일선: <b id="sma120">-</b></div>
+            <div>QQQ 200일선: <b id="sma200">-</b></div>
+        </div>
+        <div style="font-size: 0.75rem; color: #888; margin-top: 6px;">마지막 자동 갱신: <span id="updatedAt">-</span></div>
+    </div>
+
+    <!-- 2. S5TW 입력 & 종합 판정 -->
+    <div class="card">
+        <h2>📊 S5TW 입력 & 최종 매매 판단</h2>
+        <label>현재 S5TW 수치 입력 (%)</label>
+        <input type="number" id="s5twInput" placeholder="예: 28.5 (Barchart 등에서 확인)" step="0.1">
+        <button onclick="evaluateStrategy()">지표 저장 및 신호 확인</button>
+        <div id="signalResult" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- 3. 백업 & 복구 -->
+    <div class="card">
+        <h2>📈 데이터 백업 및 복구</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button onclick="exportData()">데이터 백업 (JSON)</button>
+            <button class="secondary" onclick="document.getElementById('importFile').click()">복구 (Import)</button>
+        </div>
+        <input type="file" id="importFile" style="display:none" onchange="importData(event)">
+    </div>
+
+    <script>
+        let marketData = { qqq: { is_above_ma: true } };
+        let store = JSON.parse(localStorage.getItem('myInvestData')) || { s5twHistory: [], assetHistory: [] };
+
+        async function loadAutoData() {
+            try {
+                const res = await fetch('data.json?t=' + new Date().getTime());
+                marketData = await res.json();
+                
+                document.getElementById('qqqPrice').innerText = '$' + marketData.qqq.price;
+                document.getElementById('fxRate').innerText = marketData.fx_rate;
+                document.getElementById('sma120').innerText = '$' + marketData.qqq.sma_120;
+                document.getElementById('sma200').innerText = '$' + marketData.qqq.sma_200;
+                document.getElementById('updatedAt').innerText = marketData.updated_at;
+            } catch (e) {
+                console.log("data.json 로드 대기 중");
+            }
+        }
+
+        function evaluateStrategy() {
+            const s5tw = parseFloat(document.getElementById('s5twInput').value);
+            if (isNaN(s5tw)) return alert("S5TW 수치를 입력해 주세요.");
+
+            const prevS5tw = store.s5twHistory.length > 0 ? store.s5twHistory[store.s5twHistory.length - 1].val : s5tw;
+            store.s5twHistory.push({ date: new Date().toISOString().split('T')[0], val: s5tw });
+            localStorage.setItem('myInvestData', JSON.stringify(store));
+
+            const qqqUp = marketData.qqq.is_above_ma;
+            const res = document.getElementById('signalResult');
+
+            if (!qqqUp) {
+                res.innerHTML = '<span class="badge badge-red">🚨 위험 신호</span> QQQ가 120/200일선 아래입니다. QLD를 정리하고 외화RP로 원금을 방어하세요.';
+            } else if (qqqUp && prevS5tw <= 30 && s5tw > 30) {
+                res.innerHTML = '<span class="badge badge-green">🔥 강력 매수 (대바닥 타점)</span> S5TW 30 돌파 완료! 준비된 1,500만 원 실탄을 포트폴리오 비중대로 집행하세요.';
+            } else if (qqqUp && s5tw <= 30) {
+                res.innerHTML = '<span class="badge badge-yellow">⏳ 과매도 관망</span> S5TW가 30 이하입니다. 30 위로 재돌파할 때까지 외화RP에 대기하세요.';
+            } else {
+                res.innerHTML = '<span class="badge badge-green">✅ 상승 추세 유지</span> 현금(외화RP) 상태를 유지하며 달러 이자를 수취하세요.';
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `invest_backup_${new Date().toISOString().split('T')[0]}.json`);
+            dl.click();
+        }
+
+        function importData(e) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                store = JSON.parse(evt.target.result);
+                localStorage.setItem('myInvestData', JSON.stringify(store));
+                alert("데이터 복구가 완료되었습니다.");
+                location.reload();
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        loadAutoData();
+    </script>
+</body>
+</html>
