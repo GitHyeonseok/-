@@ -163,6 +163,23 @@ s5tw:0,s5twBottomDetected:false,trades:[],snapshots:[],workerUrl:""
 }}
 function loadData(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");if(!x)return defaultData();return{...defaultData(),...x,holdings:{...defaultData().holdings,...(x.holdings||{})}}}catch{return defaultData()}}
 let appData=loadData();
+
+// 이전 버전에서 AI 기타종목이 "기타 자산"에 저장된 뒤
+// 새 버전에서 "기타 투자자산"에도 같은 금액이 들어간 경우 1회 정리
+(function migrateDuplicateOtherAsset(){
+  const MIGRATION_KEY="wealthManagerMigration_otherInvestment_v1";
+  if(localStorage.getItem(MIGRATION_KEY)) return;
+
+  const oldOther=Number(appData.otherAsset)||0;
+  const otherInvestment=Number(appData.otherInvestment)||0;
+
+  if(oldOther>0 && otherInvestment>0 && oldOther===otherInvestment){
+    appData.otherAsset=0;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+  }
+
+  localStorage.setItem(MIGRATION_KEY,"done");
+})();
 const money=v=>Math.round(Number(v)||0).toLocaleString()+"원";
 const num=id=>Number(document.getElementById(id)?.value)||0;
 
