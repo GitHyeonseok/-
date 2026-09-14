@@ -5,18 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>포트폴리오 리밸런싱 & 추세추종</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 15px; background: #f4f6f8; color: #333; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: #f4f6f8; color: #333; }
         .card { background: white; padding: 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 12px; color: #1a1a1a; border-bottom: 2px solid #007aff; padding-bottom: 5px; }
-        label { font-size: 0.85rem; color: #666; display: block; margin-top: 8px; }
-        input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+        h2 { font-size: 1.05rem; margin-top: 0; margin-bottom: 12px; color: #1a1a1a; border-bottom: 2px solid #007aff; padding-bottom: 6px; }
+        label { font-size: 0.85rem; color: #666; display: block; margin-top: 10px; }
+        input { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
         button { width: 100%; padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 12px; font-size: 1rem; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th, td { border: 1px solid #eee; padding: 8px; text-align: right; }
-        th { background: #f8f9fa; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.82rem; }
+        th, td { border: 1px solid #eee; padding: 8px 4px; text-align: right; }
+        th { background: #f8f9fa; text-align: center; font-weight: 600; }
         td:first-child { text-align: left; font-weight: bold; }
         .buy { color: #d9534f; font-weight: bold; }
-        .status-box { padding: 10px; border-radius: 6px; background: #eef7ff; font-size: 0.9rem; margin-top: 8px; line-height: 1.6; }
+        .status-box { padding: 12px; border-radius: 8px; background: #eef7ff; font-size: 0.9rem; line-height: 1.7; }
     </style>
 </head>
 <body>
@@ -32,8 +33,112 @@
 
 <div class="card">
     <h2>🎯 통합 포트폴리오 리밸런싱 결과</h2>
-    <div id="totalSummary" class="status-box">버튼을 누르면 총 자산이 계산됩니다.</div>
+    <div id="totalSummary" class="status-box" style="margin-bottom:10px;">버튼을 누르면 총 자산이 계산됩니다.</div>
     <table>
+        <thead>
+            <tr>
+                <th style="width: 35%;">종목</th>
+                <th style="width: 18%;">목표비중</th>
+                <th style="width: 235%;">목표금액</th>
+                <th style="width: 24%;">조정 필요금액</th>
+            </tr>
+        </thead>
+        <tbody id="rebalanceTable">
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>📈 시장 시그널 및 데이터 status</h2>
+    <div id="marketData" class="status-box">data.json 로딩 중...</div>
+</div>
+
+<script>
+    const targetPortfolio = [
+        { name: "QLD (나스닥 2배)", weight: 30 },
+        { name: "QQQ (나스닥 1배)", weight: 20 },
+        { name: "비자 (V)", weight: 15 },
+        { name: "코카콜라 / 버크셔", weight: 15 },
+        { name: "KRX 금", weight: 10 },
+        { name: "외화RP (현금성)", weight: 10 }
+    ];
+
+    function calculateRebalance() {
+        const existing = parseFloat(document.getElementById('existingAsset').value) || 0;
+        const newMoney = parseFloat(document.getElementById('newCash').value) || 0;
+        const totalAsset = existing + newMoney;
+
+        document.getElementById('totalSummary').innerHTML = 
+            `<b>총 운용 자산:</b> ${totalAsset.toLocaleString()} 원 <br><small style="color:#666;">(기존: ${existing.toLocaleString()}원 + 신규: ${newMoney.toLocaleString()}원)</small>`;
+
+        const tbody = document.getElementById('rebalanceTable');
+        tbody.innerHTML = '';
+
+        targetPortfolio.forEach(item => {
+            const targetAmount = totalAsset * (item.weight / 100);
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.name}</td>
+                <td style="text-align:center;">${item.weight}%</td>
+                <td>${Math.round(targetAmount).toLocaleString()}원</td>
+                <td class="buy">+${Math.round(targetAmount).toLocaleString()}원</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function loadMarketData() {
+        try {
+            // 강제 캐시 삭제를 위해 타임스탬프 파라미터 추가
+            const response = await fetch('data.json?t=' + new Date().getTime());
+            if (!response.ok) throw new Error('Data not found');
+            const data = await response.json();
+            
+            // 파이썬 객체 구조 자동 탐색
+            let qqqObj = data.QQQ || data.qqq || data;
+            
+            // QQQ 종가
+            let qqqClose = qqqObj.close || qqqObj.price || qqqObj['Close'] || '-';
+            
+            // 이동평균선 (다양한 파이썬 변수명 자동 매핑)
+            let ma120 = qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || qqqObj['120일이평'] || '-';
+            let ma200 = qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || qqqObj['200일이평'] || '-';
+
+            // 환율
+            let fxRate = data.exchange_rate || data.usd_krw || data.usdkrw || data.fx || data.rate || data.KRW || '-';
+
+            // 숫자 포맷팅 함수
+            const formatNum = (val, decimals = 2) => {
+                if (val === '-' || val === null || val === undefined) return '-';
+                let num = parseFloat(val);
+                return isNaN(num) ? '-' : num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            };
+
+            const formatKRW = (val) => {
+                if (val === '-' || val === null || val === undefined) return '-';
+                let num = parseFloat(val);
+                return isNaN(num) ? '-' : Math.round(num).toLocaleString();
+            };
+
+            document.getElementById('marketData').innerHTML = `
+                <b>최종 업데이트:</b> ${data.updated_at || data.timestamp || 'N/A'}<br>
+                <b>QQQ 종가:</b> $${formatNum(qqqClose)}<br>
+                <b>QQQ 120일 이평:</b> $${formatNum(ma120)}<br>
+                <b>QQQ 200일 이평:</b> $${formatNum(ma200)}<br>
+                <b>환율 (USD/KRW):</b> ${formatKRW(fxRate)} 원
+            `;
+        } catch (e) {
+            document.getElementById('marketData').innerHTML = '⚠️ data.json을 불러오는 데 실패했습니다.';
+        }
+    }
+
+    calculateRebalance();
+    loadMarketData();
+</script>
+
+</body>
+</html>
         <thead>
             <tr>
                 <th>종목</th>
