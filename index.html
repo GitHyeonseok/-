@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="theme-color" content="#007aff">
-<link rel="manifest" href="manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1.0" name="viewport"/>
+<meta content="#007aff" name="theme-color"/>
+<link href="manifest.json" rel="manifest"/>
+<meta content="yes" name="mobile-web-app-capable"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
 <title>내 자산관리 시스템</title>
 <style>
 *{box-sizing:border-box} body{margin:0;padding:12px;background:#f4f6f8;color:#202124;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -29,29 +30,21 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 </head>
 <body>
 <div class="container">
-<div class="header"><h1>💰 내 자산관리 시스템</h1><p>자산 · 투자전략 · 리밸런싱 · 매매기록 · 스크린샷 분석</p></div>
+<div class="header"><h1>💰 내 자산관리 시스템</h1><p>대시보드 → 자산 업데이트 → 시장 판단 → 리밸런싱 → 기록</p></div>
+
+
+
+
+
+
+
+
+
+
+
 
 <div class="card">
-<h2>📷 1. 자산 스크린샷 AI 분석</h2>
-<p class="note">증권사/은행 앱 스크린샷을 이 사이트에 직접 올리면 종목과 평가금액을 읽습니다. 인식 결과를 확인·수정한 뒤 자산에 반영하세요.</p>
-<input id="assetImage" type="file" accept="image/png,image/jpeg,image/webp" onchange="previewImage(event)">
-<img id="imagePreview" class="preview hidden" alt="업로드 미리보기">
-<div class="grid2">
-<div><label>반영 방식</label><select id="applyMode"><option value="replace">해당 항목 덮어쓰기</option><option value="add">기존 금액에 합산</option></select></div>
-<div><label>분석 서버 주소</label><input id="workerUrl" placeholder="https://...workers.dev"></div>
-</div>
-<button onclick="analyzeScreenshot()">AI로 스크린샷 분석</button>
-<div id="aiLoading" class="status hidden" style="margin-top:10px">분석 중입니다…</div>
-<div id="aiResult" class="hidden">
-<h3>인식 결과 — 확인 후 수정 가능</h3>
-<div id="recognizedAssets"></div>
-<div id="aiWarnings"></div>
-<button class="green" onclick="applyRecognizedAssets()">확인한 금액을 내 자산에 반영</button>
-</div>
-</div>
-
-<div class="card">
-<h2>🏦 2. 순자산 대시보드</h2>
+<h2>🏦 1. 순자산 대시보드</h2>
 <div class="summary-grid">
 <div class="summary"><div class="title">총 순자산</div><div class="value" id="netWorthDisplay">0원</div></div>
 <div class="summary"><div class="title">총 투자자산</div><div class="value" id="investmentDisplay">0원</div></div>
@@ -60,38 +53,59 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 </div>
 <h3>자산 구성</h3>
 <div class="grid2">
-<div><label>원화 현금 / 통장</label><input type="number" id="cashKRW"></div>
-<div><label>비상금</label><input type="number" id="emergency"></div>
-<div><label>예정 지출 보관금</label><input type="number" id="plannedExpense"></div>
-<div><label>외화RP</label><input type="number" id="foreignRP"></div>
-<div><label>기타 자산</label><input type="number" id="otherAsset"></div>
-<div><label>기타 투자자산</label><input type="number" id="otherInvestment"></div>
-<div><label>부채</label><input type="number" id="debt"></div>
+<div><label>원화 현금 / 통장</label><input id="cashKRW" type="number"/></div>
+<div><label>비상금</label><input id="emergency" type="number"/></div>
+<div><label>예정 지출 보관금</label><input id="plannedExpense" type="number"/></div>
+<div><label>외화RP</label><input id="foreignRP" type="number"/></div>
+<div><label>기타 자산</label><input id="otherAsset" type="number"/></div>
+<div><label>기타 투자자산</label><input id="otherInvestment" type="number"/></div>
+<div><label>부채</label><input id="debt" type="number"/></div>
 </div>
 <button onclick="saveAll()">자산 저장</button>
+</div><div class="card">
+<h2>📷 2. 자산 스크린샷 AI 분석</h2>
+<p class="note">증권사/은행 앱 스크린샷을 이 사이트에 직접 올리면 종목과 평가금액을 읽습니다. 인식 결과를 확인·수정한 뒤 자산에 반영하세요.</p>
+<input accept="image/png,image/jpeg,image/webp" id="assetImage" onchange="previewImage(event)" type="file"/>
+<img alt="업로드 미리보기" class="preview hidden" id="imagePreview"/>
+<div class="grid2">
+<div><label>반영 방식</label><select id="applyMode"><option value="replace">해당 항목 덮어쓰기</option><option value="add">기존 금액에 합산</option></select></div>
+<div><label>분석 서버 주소</label><input id="workerUrl" placeholder="https://...workers.dev"/></div>
 </div>
-
-<div class="card">
-<h2>🎯 3. 자산 목표</h2>
+<button onclick="analyzeScreenshot()">AI로 스크린샷 분석</button>
+<div class="status hidden" id="aiLoading" style="margin-top:10px">분석 중입니다…</div>
+<div class="hidden" id="aiResult">
+<h3>인식 결과 — 확인 후 수정 가능</h3>
+<div id="recognizedAssets"></div>
+<div id="aiWarnings"></div>
+<button class="green" onclick="applyRecognizedAssets()">확인한 금액을 내 자산에 반영</button>
+</div>
+</div><div class="card"><h2>📈 3. 자동 시장 데이터</h2><div class="status" id="marketData">data.json 불러오는 중...</div></div><div class="card">
+<h2>🚦 4. 추세추종 전략</h2>
+<label>현재 S5TW (%)</label><input id="s5twInput" oninput="saveS5TW()" placeholder="예: 28" type="number"/>
+<div class="signal wait" id="signalStatus">시장 데이터 확인 중...</div><div class="status" id="signalDetail"></div>
+<button class="gray" onclick="resetSignalCycle()">S5TW 사이클 초기화</button>
+</div><div class="card">
+<h2>📂 5. 투자자산 보유 현황</h2>
+<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재 평가금액</th></tr></thead><tbody id="holdingInputs"></tbody></table></div>
+<button onclick="saveAll()">보유자산 저장</button>
+</div><div class="card">
+<h2>⚖️ 6. 포트폴리오 리밸런싱</h2>
+<div class="status" id="rebalanceSummary"></div>
+<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>목표금액</th><th>조정</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
+<p class="note">목표 포트폴리오 자산 + 외화RP만 리밸런싱 기준으로 사용하며, 기타 투자자산은 총 투자자산에는 포함하지만 목표 비중 계산에서는 제외합니다.</p>
+</div><div class="card">
+<h2>🎯 7. 자산 목표</h2>
 <div class="grid3">
-<div><label>목표 순자산</label><input type="number" id="goalAmount"></div>
-<div><label>목표 날짜</label><input type="date" id="goalDate"></div>
-<div><label>월 추가 저축/투자액</label><input type="number" id="monthlyContribution"></div>
+<div><label>목표 순자산</label><input id="goalAmount" type="number"/></div>
+<div><label>목표 날짜</label><input id="goalDate" type="date"/></div>
+<div><label>월 추가 저축/투자액</label><input id="monthlyContribution" type="number"/></div>
 </div>
 <button onclick="saveAll()">목표 저장</button>
 <div class="progress-bg"><div class="progress-bar" id="goalProgress"></div></div>
-<div id="goalInfo" class="status" style="margin-top:10px"></div>
-</div>
-
-<div class="card">
-<h2>📂 4. 투자자산 보유 현황</h2>
-<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재 평가금액</th></tr></thead><tbody id="holdingInputs"></tbody></table></div>
-<button onclick="saveAll()">보유자산 저장</button>
-</div>
-
-<div class="card">
-<h2>📊 5. 투자 성과</h2>
-<div class="grid2"><div><label>누적 투자 원금</label><input type="number" id="investmentPrincipal"></div><div><label>누적 배당 / 이자</label><input type="number" id="incomeReceived"></div></div>
+<div class="status" id="goalInfo" style="margin-top:10px"></div>
+</div><div class="card">
+<h2>📊 8. 투자 성과</h2>
+<div class="grid2"><div><label>누적 투자 원금</label><input id="investmentPrincipal" type="number"/></div><div><label>누적 배당 / 이자</label><input id="incomeReceived" type="number"/></div></div>
 <button onclick="saveAll()">성과 저장</button>
 <div class="summary-grid" style="margin-top:12px">
 <div class="summary"><div class="title">현재 투자 평가액</div><div class="value" id="performanceValue">0원</div></div>
@@ -99,65 +113,39 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 <div class="summary"><div class="title">수익률</div><div class="value" id="returnDisplay">0%</div></div>
 <div class="summary"><div class="title">배당/이자 포함 손익</div><div class="value" id="totalProfitDisplay">0원</div></div>
 </div>
-</div>
-
-<div class="card">
-<h2>💸 6. 월 현금흐름</h2>
+</div><div class="card">
+<h2>📝 9. 매매일지</h2>
 <div class="grid2">
-<div><label>월 수입</label><input type="number" id="monthlyIncome"></div>
-<div><label>고정비</label><input type="number" id="fixedExpense"></div>
-<div><label>생활비</label><input type="number" id="livingExpense"></div>
-<div><label>기타 지출</label><input type="number" id="otherExpense"></div>
-</div>
-<button onclick="saveAll()">현금흐름 저장</button><div id="cashflowResult" class="status" style="margin-top:10px"></div>
-</div>
-
-<div class="card">
-<h2>🚦 7. 추세추종 전략</h2>
-<label>현재 S5TW (%)</label><input type="number" id="s5twInput" oninput="saveS5TW()" placeholder="예: 28">
-<div id="signalStatus" class="signal wait">시장 데이터 확인 중...</div><div id="signalDetail" class="status"></div>
-<button class="gray" onclick="resetSignalCycle()">S5TW 사이클 초기화</button>
-</div>
-
-<div class="card"><h2>📈 8. 자동 시장 데이터</h2><div id="marketData" class="status">data.json 불러오는 중...</div></div>
-
-<div class="card">
-<h2>⚖️ 9. 포트폴리오 리밸런싱</h2>
-<div id="rebalanceSummary" class="status"></div>
-<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>목표금액</th><th>조정</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
-<p class="note">목표 포트폴리오 자산 + 외화RP만 리밸런싱 기준으로 사용하며, 기타 투자자산은 총 투자자산에는 포함하지만 목표 비중 계산에서는 제외합니다.</p>
-</div>
-
-<div class="card">
-<h2>📝 10. 매매일지</h2>
-<div class="grid2">
-<div><label>날짜</label><input type="date" id="tradeDate"></div>
+<div><label>날짜</label><input id="tradeDate" type="date"/></div>
 <div><label>종목</label><select id="tradeTicker"><option>QLD</option><option>QQQ</option><option>VOO</option><option>BRK.B</option><option>Visa</option><option>KRX 금</option><option>외화RP</option></select></div>
 <div><label>구분</label><select id="tradeType"><option>매수</option><option>매도</option><option>환전</option><option>배당</option><option>이자</option></select></div>
-<div><label>거래 금액</label><input type="number" id="tradeAmount"></div>
+<div><label>거래 금액</label><input id="tradeAmount" type="number"/></div>
 </div>
 <label>거래 이유 / 기록</label><textarea id="tradeMemo" placeholder="예: S5TW 30 재돌파 + QQQ 추세 유지"></textarea>
 <button onclick="addTrade()">매매 기록 추가</button>
 <div class="scroll"><table><thead><tr><th>날짜</th><th>종목</th><th>구분</th><th>금액</th><th>기록</th><th></th></tr></thead><tbody id="tradeTable"></tbody></table></div>
-</div>
-
-<div class="card">
-<h2>📅 11. 순자산 기록</h2>
+</div><div class="card">
+<h2>📅 10. 순자산 기록</h2>
 <button class="green" onclick="addSnapshot()">현재 순자산 기록</button>
-<div id="snapshotSummary" class="status" style="margin-top:10px"></div>
+<div class="status" id="snapshotSummary" style="margin-top:10px"></div>
 <div class="scroll"><table><thead><tr><th>날짜</th><th>순자산</th><th>변화</th><th></th></tr></thead><tbody id="snapshotTable"></tbody></table></div>
+</div><div class="card">
+<h2>💸 11. 월 현금흐름</h2>
+<div class="grid2">
+<div><label>월 수입</label><input id="monthlyIncome" type="number"/></div>
+<div><label>고정비</label><input id="fixedExpense" type="number"/></div>
+<div><label>생활비</label><input id="livingExpense" type="number"/></div>
+<div><label>기타 지출</label><input id="otherExpense" type="number"/></div>
 </div>
-
-<div class="card">
+<button onclick="saveAll()">현금흐름 저장</button><div class="status" id="cashflowResult" style="margin-top:10px"></div>
+</div><div class="card">
 <h2>💾 12. 백업 / 복원</h2>
 <button onclick="exportBackup()">JSON 백업파일 저장</button>
 <button class="gray" onclick="document.getElementById('backupFile').click()">백업파일 불러오기</button>
-<input type="file" id="backupFile" class="hidden" accept=".json" onchange="importBackup(event)">
+<input accept=".json" class="hidden" id="backupFile" onchange="importBackup(event)" type="file"/>
 <button class="red" onclick="resetEverything()">모든 개인 데이터 초기화</button>
 <p class="note">개인 데이터는 이 브라우저의 localStorage에 저장됩니다. 휴대폰 교체 전에는 백업을 권장합니다.</p>
-</div>
-</div>
-
+</div></div>
 <script>
 const portfolio=[
 {id:"qld",name:"QLD",weight:30},{id:"qqq",name:"QQQ",weight:20},{id:"voo",name:"VOO",weight:20},
@@ -244,8 +232,12 @@ async function analyzeScreenshot(){
 }
 const assetNames={qld:"QLD",qqq:"QQQ",voo:"VOO",brkb:"버크셔 B",visa:"Visa",gold:"KRX 금",cashKRW:"원화 현금",foreignRP:"외화RP",emergency:"비상금",plannedExpense:"예정지출",otherAsset:"기타 자산",otherInvestment:"기타 투자자산",unknown:"분류 불가"};
 function renderRecognized(data){
-  recognizedAssets.innerHTML="";
-  recognizedAssets=data.assets||[];
+  document.getElementById("recognizedAssets").innerHTML="";
+  recognizedAssets=(data.assets||[]).map(a=>
+    a.canonical_id==="otherAsset"
+      ? {...a,canonical_id:"otherInvestment"}
+      : a
+  );
   recognizedAssets.forEach((a,i)=>recognizedAssetsEl(i,a));
   const warnings=data.warnings||[];
   aiWarnings.innerHTML=warnings.length?`<div class="warn"><b>확인 필요</b><br>${warnings.map(escapeHtml).join("<br>")}</div>`:"";
@@ -275,7 +267,7 @@ function applyRecognizedAssets(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
   createHoldingInputs();populateInputs();renderAll();
   alert("확인한 자산을 반영했습니다.");
-  window.scrollTo({top:document.querySelectorAll(".card")[1].offsetTop-10,behavior:"smooth"});
+  window.scrollTo({top:document.querySelectorAll(".card")[0].offsetTop-10,behavior:"smooth"});
 }
 
 createHoldingInputs();populateInputs();renderAll();loadMarketData();
