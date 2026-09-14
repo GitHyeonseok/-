@@ -101,9 +101,9 @@
             let qqqObj = data.QQQ || data.qqq || data;
             let qqqClose = qqqObj.close || qqqObj.price || qqqObj['Close'] || '-';
             
-            let ma120 = qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || '-';
-            let ma200 = qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || '-';
-            let fxRate = data.exchange_rate || data.usd_krw || data.usdkrw || data.fx || data.rate || '-';
+            let ma120 = qqqObj.sma_120 || qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || '-';
+            let ma200 = qqqObj.sma_200 || qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || '-';
+            let fxRate = data.fx_rate || data.exchange_rate || data.usd_krw || data.usdkrw || data.fx || data.rate || '-';
 
             const formatNum = (val, decimals = 2) => {
                 if (val === '-' || val === null || val === undefined) return '-';
