@@ -11,13 +11,20 @@ def get_market_data():
     fx_pct = 0
     try:
         fx = yf.Ticker("KRW=X")
-        fx_hist = fx.history(period="5d")
+        fx_hist = fx.history(period="10d")
+        # 데이터가 2개 이상이고 종가가 0이 아닌 경우에 계산
         if len(fx_hist) >= 2:
             current_fx = float(fx_hist['Close'].iloc[-1])
             prev_fx = float(fx_hist['Close'].iloc[-2])
+            
+            # 만약 장 시작 전이거나 동일 데이터일 경우 이전 거래일 비교
+            if current_fx == prev_fx and len(fx_hist) >= 3:
+                prev_fx = float(fx_hist['Close'].iloc[-3])
+
             fx_rate = round(current_fx, 2)
             fx_change = round(current_fx - prev_fx, 2)
-            fx_pct = round(((current_fx - prev_fx) / prev_fx) * 100, 2)
+            if prev_fx > 0:
+                fx_pct = round(((current_fx - prev_fx) / prev_fx) * 100, 2)
     except Exception as e:
         print(f"FX Fetch Error: {e}")
 
@@ -34,9 +41,14 @@ def get_market_data():
             current_close = float(qqq_hist['Close'].iloc[-1])
             prev_close = float(qqq_hist['Close'].iloc[-2])
             
+            # 장 시작 전 혹은 종가 동일 시 이전 거래일과 비교
+            if current_close == prev_close and len(qqq_hist) >= 3:
+                prev_close = float(qqq_hist['Close'].iloc[-3])
+
             qqq_close = round(current_close, 2)
             qqq_change = round(current_close - prev_close, 2)
-            qqq_pct = round(((current_close - prev_close) / prev_close) * 100, 2)
+            if prev_close > 0:
+                qqq_pct = round(((current_close - prev_close) / prev_close) * 100, 2)
             
             sma_120 = round(float(qqq_hist['Close'].rolling(window=120).mean().iloc[-1]), 2)
             sma_200 = round(float(qqq_hist['Close'].rolling(window=200).mean().iloc[-1]), 2)
