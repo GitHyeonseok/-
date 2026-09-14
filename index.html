@@ -8,298 +8,884 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>포트폴리오 리밸런싱 & 추세추종</title>
+
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: #f4f6f8; color: #333; }
-        .card { background: white; padding: 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        h2 { font-size: 1.05rem; margin-top: 0; margin-bottom: 12px; color: #1a1a1a; border-bottom: 2px solid #007aff; padding-bottom: 6px; }
-        label { font-size: 0.85rem; color: #666; display: block; margin-top: 8px; }
-        input { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
-        .grid-input { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        button { width: 100%; padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 12px; font-size: 1rem; cursor: pointer; }
-        .btn-secondary { background: #6c757d; margin-top: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; }
-        th, td { border: 1px solid #eee; padding: 8px 3px; text-align: right; }
-        th { background: #f8f9fa; text-align: center; font-weight: 600; }
-        td:first-child { text-align: left; font-weight: bold; }
-        .buy { color: #d9534f; font-weight: bold; }
-        .sell { color: #0275d8; font-weight: bold; }
-        .status-box { padding: 12px; border-radius: 8px; background: #eef7ff; font-size: 0.9rem; line-height: 1.7; }
-        
-        .signal-card { padding: 14px; border-radius: 8px; font-weight: bold; text-align: center; font-size: 1rem; line-height: 1.5; margin-bottom: 8px; }
-        .signal-bull { background-color: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
-        .signal-bear { background-color: #fce8e6; color: #c5221f; border: 1px solid #fad2cf; }
-        .signal-wait { background-color: #fef7e0; color: #b06000; border: 1px solid #feefc3; }
-        
-        .holding-input-table input { padding: 6px; font-size: 0.85rem; text-align: right; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #f4f6f8;
+            color: #333;
+        }
+
+        .card {
+            background: white;
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            font-size: 1.05rem;
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #1a1a1a;
+            border-bottom: 2px solid #007aff;
+            padding-bottom: 6px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #666;
+            display: block;
+            margin-top: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 4px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .grid-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-top: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 6px;
+        }
+
+        .btn-danger {
+            background: #c5221f;
+            margin-top: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.8rem;
+        }
+
+        th, td {
+            border: 1px solid #eee;
+            padding: 8px 3px;
+            text-align: right;
+        }
+
+        th {
+            background: #f8f9fa;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        td:first-child {
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .buy {
+            color: #d9534f;
+            font-weight: bold;
+        }
+
+        .sell {
+            color: #0275d8;
+            font-weight: bold;
+        }
+
+        .status-box {
+            padding: 12px;
+            border-radius: 8px;
+            background: #eef7ff;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .signal-card {
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1rem;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .signal-bull {
+            background-color: #e6f4ea;
+            color: #137333;
+            border: 1px solid #ceead6;
+        }
+
+        .signal-bear {
+            background-color: #fce8e6;
+            color: #c5221f;
+            border: 1px solid #fad2cf;
+        }
+
+        .signal-wait {
+            background-color: #fef7e0;
+            color: #b06000;
+            border: 1px solid #feefc3;
+        }
+
+        .holding-input-table input {
+            padding: 6px;
+            font-size: 0.85rem;
+            text-align: right;
+        }
+
+        .small-note {
+            font-size: 0.8rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: bold;
+            background: #eef2f7;
+            margin-top: 6px;
+        }
     </style>
 </head>
+
 <body>
 
-<!-- 1. 자산 및 S5TW 수동 입력 카드 -->
+<!-- 1. 자산 및 S5TW 입력 -->
 <div class="card">
     <h2>📊 1. 자산 및 지표 입력</h2>
+
     <div class="grid-input">
         <div>
             <label>기존 자산 평가액 (원)</label>
             <input type="number" id="existingAsset" value="9630000">
         </div>
+
         <div>
             <label>신규 투입 실탄 (원)</label>
             <input type="number" id="newCash" value="10000000">
         </div>
     </div>
-    
+
     <label>현재 S5TW 지수 (%)</label>
-    <input type="number" id="s5twInput" value="28" placeholder="예: 28 (30 이하 시 대바닥)" oninput="updateSignalOnly()">
+    <input
+        type="number"
+        id="s5twInput"
+        value="28"
+        placeholder="예: 28"
+        oninput="handleS5TWInput()"
+    >
 
     <button onclick="calculateAndSave()">자산 저장 및 리밸런싱 계산</button>
 </div>
 
-<!-- 2. 내 현재 종목별 보유 금액 직접 입력 (저장 기능 추가) -->
+
+<!-- 2. 현재 보유 종목 -->
 <div class="card">
-    <h2>📂 2. 현재 보유 종목별 금액 입력 (자동 저장)</h2>
-    <p style="font-size:0.8rem; color:#666; margin-top:-6px;">각 종목의 현재 평가금액(원)을 입력하면 저장됩니다.</p>
+    <h2>📂 2. 현재 보유 종목별 금액 입력</h2>
+
+    <p class="small-note">
+        각 종목의 현재 평가금액(원)을 입력하면 자동 저장됩니다.
+    </p>
+
     <table class="holding-input-table">
         <thead>
-            <tr>
-                <th style="width: 50%;">종목명</th>
-                <th style="width: 50%;">현재 보유금액 (원)</th>
-            </tr>
+        <tr>
+            <th style="width:50%;">종목명</th>
+            <th style="width:50%;">현재 보유금액</th>
+        </tr>
         </thead>
-        <tbody id="holdingInputs">
-            <!-- 자바스크립트로 동적 생성 -->
-        </tbody>
+
+        <tbody id="holdingInputs"></tbody>
     </table>
+
     <button class="btn-secondary" onclick="resetHoldings()">보유금액 초기화</button>
 </div>
 
-<!-- 3. 추세추종 매매 판단 카드 -->
+
+<!-- 3. 투자 판단 -->
 <div class="card">
     <h2>🚦 3. 추세추종 매매 판단</h2>
+
     <div id="signalStatus" class="signal-card signal-wait">
         ⏳ 시장 데이터를 분석하는 중입니다...
     </div>
-    <div id="signalDetail" style="font-size: 0.85rem; color: #555; line-height: 1.6;"></div>
+
+    <div id="signalDetail" style="font-size:0.85rem; color:#555; line-height:1.6;"></div>
+
+    <div id="cycleStatus" class="status-box" style="margin-top:10px;">
+        투자 사이클 상태 확인 중...
+    </div>
+
+    <button class="btn-danger" onclick="resetSignalCycle()">
+        S5TW 매수 신호 기록 초기화
+    </button>
 </div>
 
-<!-- 4. 리밸런싱 결과 카드 -->
+
+<!-- 4. 리밸런싱 -->
 <div class="card">
     <h2>🎯 4. 포트폴리오 리밸런싱 결과</h2>
-    <div id="totalSummary" class="status-box" style="margin-bottom:10px;">계산 버튼을 눌러주세요.</div>
+
+    <div id="totalSummary" class="status-box" style="margin-bottom:10px;">
+        계산 버튼을 눌러주세요.
+    </div>
+
     <table>
         <thead>
-            <tr>
-                <th>종목</th>
-                <th>목표비중</th>
-                <th>목표금액</th>
-                <th>현재금액</th>
-                <th>조정 필요금액</th>
-            </tr>
+        <tr>
+            <th>종목</th>
+            <th>목표비중</th>
+            <th>목표금액</th>
+            <th>현재금액</th>
+            <th>조정 필요금액</th>
+        </tr>
         </thead>
-        <tbody id="rebalanceTable">
-        </tbody>
+
+        <tbody id="rebalanceTable"></tbody>
     </table>
 </div>
 
-<!-- 5. 시장 데이터 status 카드 -->
+
+<!-- 5. 시장 데이터 -->
 <div class="card">
-    <h2>📈 5. 시장 시그널 및 데이터 status</h2>
-    <div id="marketData" class="status-box">data.json 로딩 중...</div>
+    <h2>📈 5. 시장 데이터</h2>
+
+    <div id="marketData" class="status-box">
+        data.json 로딩 중...
+    </div>
 </div>
 
+
 <script>
+
+    // =========================
+    // 목표 포트폴리오
+    // =========================
     const targetPortfolio = [
-        { id: "qld", name: "QLD", weight: 30 },
-        { id: "qqq", name: "QQQ", weight: 20 },
-        { id: "visa", name: "비자(V)", weight: 15 },
-        { id: "ko", name: "버크셔B", weight: 15 },
-        { id: "gold", name: "KRX 금", weight: 10 },
-        { id: "rp", name: "외화RP", weight: 10 }
+        { id: "qld",  name: "QLD",       weight: 30 },
+        { id: "qqq",  name: "QQQ",       weight: 20 },
+        { id: "voo",  name: "VOO",       weight: 20 },
+        { id: "brkb", name: "버크셔 B",  weight: 15 },
+        { id: "visa", name: "Visa",      weight: 5 },
+        { id: "gold", name: "KRX 금",    weight: 10 }
     ];
 
     let globalData = null;
 
-    // 초기 보유금액 입력창 생성 및 저장값 로드
+
+    // =========================
+    // 초기 입력창 생성
+    // =========================
     function initHoldingInputs() {
+
         const container = document.getElementById('holdingInputs');
         container.innerHTML = '';
 
-        const savedHoldings = JSON.parse(localStorage.getItem('myPortfolioHoldings') || '{}');
+        const savedHoldings =
+            JSON.parse(localStorage.getItem('myPortfolioHoldings') || '{}');
 
         targetPortfolio.forEach(item => {
-            const val = savedHoldings[item.id] !== undefined ? savedHoldings[item.id] : 0;
+
+            const val =
+                savedHoldings[item.id] !== undefined
+                    ? savedHoldings[item.id]
+                    : 0;
+
             const tr = document.createElement('tr');
+
             tr.innerHTML = `
                 <td>${item.name}</td>
-                <td><input type="number" id="hold_${item.id}" value="${val}" placeholder="0" onchange="calculateAndSave()"></td>
+                <td>
+                    <input
+                        type="number"
+                        id="hold_${item.id}"
+                        value="${val}"
+                        placeholder="0"
+                        onchange="calculateAndSave()"
+                    >
+                </td>
             `;
+
             container.appendChild(tr);
         });
 
-        // 자산 입력 기본값 로드
+
         if (localStorage.getItem('myExistingAsset')) {
-            document.getElementById('existingAsset').value = localStorage.getItem('myExistingAsset');
+            document.getElementById('existingAsset').value =
+                localStorage.getItem('myExistingAsset');
         }
+
         if (localStorage.getItem('myNewCash')) {
-            document.getElementById('newCash').value = localStorage.getItem('myNewCash');
+            document.getElementById('newCash').value =
+                localStorage.getItem('myNewCash');
         }
+
         if (localStorage.getItem('myS5tw')) {
-            document.getElementById('s5twInput').value = localStorage.getItem('myS5tw');
+            document.getElementById('s5twInput').value =
+                localStorage.getItem('myS5tw');
         }
     }
 
-    // 자산 계산 및 저장
+
+    // =========================
+    // 자산 저장 및 리밸런싱
+    // =========================
     function calculateAndSave() {
-        const existing = parseFloat(document.getElementById('existingAsset').value) || 0;
-        const newMoney = parseFloat(document.getElementById('newCash').value) || 0;
-        const s5twVal = parseFloat(document.getElementById('s5twInput').value) || 0;
+
+        const existing =
+            parseFloat(document.getElementById('existingAsset').value) || 0;
+
+        const newMoney =
+            parseFloat(document.getElementById('newCash').value) || 0;
+
+        const s5twVal =
+            parseFloat(document.getElementById('s5twInput').value) || 0;
+
         const totalAsset = existing + newMoney;
 
-        // LocalStorage 저장
+
         localStorage.setItem('myExistingAsset', existing);
         localStorage.setItem('myNewCash', newMoney);
         localStorage.setItem('myS5tw', s5twVal);
 
+
         const currentHoldings = {};
+
         targetPortfolio.forEach(item => {
-            const inputVal = parseFloat(document.getElementById(`hold_${item.id}`).value) || 0;
+
+            const input =
+                document.getElementById(`hold_${item.id}`);
+
+            const inputVal =
+                input ? parseFloat(input.value) || 0 : 0;
+
             currentHoldings[item.id] = inputVal;
         });
-        localStorage.setItem('myPortfolioHoldings', JSON.stringify(currentHoldings));
 
-        // 요약 업데이트
-        document.getElementById('totalSummary').innerHTML = 
-            `<b>총 운용 자산:</b> ${totalAsset.toLocaleString()} 원 <br><small style="color:#666;">(기존 자산: ${existing.toLocaleString()}원 + 신규 실탄: ${newMoney.toLocaleString()}원)</small>`;
+        localStorage.setItem(
+            'myPortfolioHoldings',
+            JSON.stringify(currentHoldings)
+        );
 
-        // 표 계산
-        const tbody = document.getElementById('rebalanceTable');
+
+        document.getElementById('totalSummary').innerHTML = `
+            <b>총 운용 자산:</b>
+            ${totalAsset.toLocaleString()}원
+            <br>
+            <small style="color:#666;">
+                기존 자산 ${existing.toLocaleString()}원
+                +
+                신규 실탄 ${newMoney.toLocaleString()}원
+            </small>
+        `;
+
+
+        const tbody =
+            document.getElementById('rebalanceTable');
+
         tbody.innerHTML = '';
 
-        targetPortfolio.forEach(item => {
-            const targetAmount = totalAsset * (item.weight / 100);
-            const currentAmount = currentHoldings[item.id] || 0;
-            const diff = targetAmount - currentAmount;
 
-            let diffText = "";
+        targetPortfolio.forEach(item => {
+
+            const targetAmount =
+                totalAsset * (item.weight / 100);
+
+            const currentAmount =
+                currentHoldings[item.id] || 0;
+
+            const diff =
+                targetAmount - currentAmount;
+
+
+            let diffText = '0원';
+
+
             if (diff > 0) {
-                diffText = `<span class="buy">+${Math.round(diff).toLocaleString()}원 (매수)</span>`;
+
+                diffText = `
+                    <span class="buy">
+                        +${Math.round(diff).toLocaleString()}원
+                        (매수)
+                    </span>
+                `;
+
             } else if (diff < 0) {
-                diffText = `<span class="sell">${Math.round(diff).toLocaleString()}원 (매도)</span>`;
-            } else {
-                diffText = `0원`;
+
+                diffText = `
+                    <span class="sell">
+                        ${Math.round(diff).toLocaleString()}원
+                        (매도)
+                    </span>
+                `;
             }
 
-            const tr = document.createElement('tr');
+
+            const tr =
+                document.createElement('tr');
+
             tr.innerHTML = `
                 <td>${item.name}</td>
-                <td style="text-align:center;">${item.weight}%</td>
-                <td>${Math.round(targetAmount).toLocaleString()}원</td>
-                <td>${Math.round(currentAmount).toLocaleString()}원</td>
+                <td style="text-align:center;">
+                    ${item.weight}%
+                </td>
+                <td>
+                    ${Math.round(targetAmount).toLocaleString()}원
+                </td>
+                <td>
+                    ${Math.round(currentAmount).toLocaleString()}원
+                </td>
                 <td>${diffText}</td>
             `;
+
             tbody.appendChild(tr);
         });
+
 
         updateSignalOnly();
     }
 
-    // 보유금액 리셋
+
+    // =========================
+    // 보유금액 초기화
+    // =========================
     function resetHoldings() {
-        if (confirm("입력한 현재 보유금액을 모두 초기화하시겠습니까?")) {
-            targetPortfolio.forEach(item => {
-                document.getElementById(`hold_${item.id}`).value = 0;
-            });
-            calculateAndSave();
+
+        if (!confirm("입력한 현재 보유금액을 모두 초기화하시겠습니까?")) {
+            return;
         }
-    }
 
-    function updateSignalOnly() {
-        if (!globalData) return;
+        targetPortfolio.forEach(item => {
 
-        let qqqObj = globalData.QQQ || globalData.qqq || globalData;
-        let qqqClose = parseFloat(qqqObj.close || qqqObj.price || qqqObj['Close'] || 0);
-        let ma120 = parseFloat(qqqObj.sma_120 || qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || 0);
-        let ma200 = parseFloat(qqqObj.sma_200 || qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || 0);
-        let s5twVal = parseFloat(document.getElementById('s5twInput').value) || 0;
+            const input =
+                document.getElementById(`hold_${item.id}`);
 
-        const signalBox = document.getElementById('signalStatus');
-        const detailBox = document.getElementById('signalDetail');
-
-        if (qqqClose > 0 && ma120 > 0 && ma200 > 0) {
-            const isTrendUp = (qqqClose > ma120) && (qqqClose > ma200);
-
-            if (!isTrendUp) {
-                signalBox.className = "signal-card signal-bear";
-                signalBox.innerHTML = "🛡️ [Risk-Off] 매수 중단 및 외화RP 원금 방어";
-                detailBox.innerHTML = "• QQQ가 이동평균선(120일/200일) 아래로 이탈했습니다.<br>• QLD 1순위 정리 후 <b>전액 외화RP 대기</b>로 원금을 방어하세요.";
-            } else if (s5twVal <= 30 && s5twVal > 0) {
-                signalBox.className = "signal-card signal-wait";
-                signalBox.innerHTML = "🎯 [대바닥 포착] S5TW 30 이하 대바닥 구간";
-                detailBox.innerHTML = `• QQQ 상방 추세 유지 중 + S5TW(<b>${s5twVal}%</b>) 과매도 진입.<br>• 실탄을 외화RP에 보관하다가 <b>30을 위로 재돌파할 때</b> 매수 투입하세요.`;
-            } else {
-                signalBox.className = "signal-card signal-bull";
-                signalBox.innerHTML = "🚀 [공격 매수 승인] 상승 추세 완전 충족";
-                detailBox.innerHTML = `• QQQ가 120일·200일선 위에 위치하며 S5TW(<b>${s5twVal}%</b>) 상태입니다.<br>• 목표 리밸런싱 표의 <b>조정 필요금액</b>대로 매수하세요.`;
+            if (input) {
+                input.value = 0;
             }
-        } else {
-            signalBox.className = "signal-card signal-wait";
-            signalBox.innerHTML = "⏳ 이평선 데이터 수집 대기 중";
-            detailBox.innerHTML = "• marketData 로딩 후 시그널이 자동 계산됩니다.";
-        }
+        });
+
+        calculateAndSave();
     }
 
+
+    // =========================
+    // S5TW 입력 처리
+    // =========================
+    function handleS5TWInput() {
+
+        const s5twVal =
+            parseFloat(document.getElementById('s5twInput').value) || 0;
+
+        localStorage.setItem('myS5tw', s5twVal);
+
+        updateSignalOnly();
+    }
+
+
+    // =========================
+    // 투자 판단 엔진
+    // =========================
+    function updateSignalOnly() {
+
+        if (!globalData) {
+            return;
+        }
+
+
+        const qqqObj =
+            globalData.QQQ ||
+            globalData.qqq ||
+            globalData;
+
+
+        const qqqClose =
+            parseFloat(
+                qqqObj.close ||
+                qqqObj.price ||
+                qqqObj['Close'] ||
+                0
+            );
+
+
+        const ma120 =
+            parseFloat(
+                qqqObj.sma_120 ||
+                qqqObj.ma120 ||
+                qqqObj.MA120 ||
+                qqqObj.ma_120 ||
+                qqqObj['120MA'] ||
+                0
+            );
+
+
+        const ma200 =
+            parseFloat(
+                qqqObj.sma_200 ||
+                qqqObj.ma200 ||
+                qqqObj.MA200 ||
+                qqqObj.ma_200 ||
+                qqqObj['200MA'] ||
+                0
+            );
+
+
+        const s5twVal =
+            parseFloat(
+                document.getElementById('s5twInput').value
+            ) || 0;
+
+
+        const signalBox =
+            document.getElementById('signalStatus');
+
+        const detailBox =
+            document.getElementById('signalDetail');
+
+        const cycleBox =
+            document.getElementById('cycleStatus');
+
+
+        if (!(qqqClose > 0 && ma120 > 0 && ma200 > 0)) {
+
+            signalBox.className =
+                "signal-card signal-wait";
+
+            signalBox.innerHTML =
+                "⏳ 이평선 데이터 수집 대기 중";
+
+            detailBox.innerHTML =
+                "시장 데이터가 정상적으로 로드되면 자동 판단됩니다.";
+
+            cycleBox.innerHTML =
+                "상태: 데이터 대기";
+
+            return;
+        }
+
+
+        const isTrendUp =
+            qqqClose > ma120 &&
+            qqqClose > ma200;
+
+
+        let bottomDetected =
+            localStorage.getItem('s5twBottomDetected') === 'true';
+
+
+        // S5TW가 30 이하에 들어왔을 경우 기록
+        if (s5twVal > 0 && s5twVal <= 30) {
+
+            bottomDetected = true;
+
+            localStorage.setItem(
+                's5twBottomDetected',
+                'true'
+            );
+        }
+
+
+        // =========================
+        // 1. 추세 붕괴
+        // =========================
+        if (!isTrendUp) {
+
+            signalBox.className =
+                "signal-card signal-bear";
+
+            signalBox.innerHTML =
+                "🛡️ [Risk-Off] 방어 모드";
+
+
+            detailBox.innerHTML = `
+                • QQQ가 120일선 또는 200일선 아래입니다.<br>
+                • 신규 공격 매수를 중단합니다.<br>
+                • QLD를 우선 축소하고 외화RP 대기를 고려합니다.
+            `;
+
+
+            cycleBox.innerHTML = `
+                <b>현재 상태:</b>
+                <span class="mode-badge">RISK OFF</span>
+            `;
+
+            return;
+        }
+
+
+        // =========================
+        // 2. S5TW 30 이하
+        // =========================
+        if (s5twVal > 0 && s5twVal <= 30) {
+
+            signalBox.className =
+                "signal-card signal-wait";
+
+            signalBox.innerHTML =
+                "🎯 [과매도 진입] S5TW 30 이하";
+
+
+            detailBox.innerHTML = `
+                • QQQ는 120일·200일선 위입니다.<br>
+                • 현재 S5TW: <b>${s5twVal}%</b><br>
+                • 아직 바로 매수하지 않고 30 재돌파를 기다립니다.
+            `;
+
+
+            cycleBox.innerHTML = `
+                <b>현재 상태:</b>
+                <span class="mode-badge">OVERSOLD</span><br>
+                S5TW 30 이하 진입 기록이 저장되었습니다.
+            `;
+
+            return;
+        }
+
+
+        // =========================
+        // 3. 30 이하 진입 후 재돌파
+        // =========================
+        if (bottomDetected && s5twVal > 30) {
+
+            signalBox.className =
+                "signal-card signal-bull";
+
+            signalBox.innerHTML =
+                "🚀 [공격 매수 승인] S5TW 반등 확인";
+
+
+            detailBox.innerHTML = `
+                • QQQ가 120일·200일선 위입니다.<br>
+                • S5TW 30 이하 진입 기록이 존재합니다.<br>
+                • 현재 S5TW: <b>${s5twVal}%</b><br>
+                • 공격 포트폴리오 매수 조건이 충족되었습니다.
+            `;
+
+
+            cycleBox.innerHTML = `
+                <b>현재 상태:</b>
+                <span class="mode-badge">BUY SIGNAL</span>
+            `;
+
+            return;
+        }
+
+
+        // =========================
+        // 4. 평상시 관망
+        // =========================
+        signalBox.className =
+            "signal-card signal-wait";
+
+        signalBox.innerHTML =
+            "👀 [관망] 매수 조건 대기";
+
+
+        detailBox.innerHTML = `
+            • QQQ 상승 추세는 유지 중입니다.<br>
+            • 현재 S5TW: <b>${s5twVal}%</b><br>
+            • 아직 S5TW 30 이하 진입 → 재상승 조건이 발생하지 않았습니다.
+        `;
+
+
+        cycleBox.innerHTML = `
+            <b>현재 상태:</b>
+            <span class="mode-badge">WAITING</span>
+        `;
+    }
+
+
+    // =========================
+    // 신호 기록 초기화
+    // =========================
+    function resetSignalCycle() {
+
+        if (
+            !confirm(
+                "S5TW 30 이하 진입 기록을 초기화하시겠습니까?"
+            )
+        ) {
+            return;
+        }
+
+        localStorage.removeItem(
+            's5twBottomDetected'
+        );
+
+        updateSignalOnly();
+    }
+
+
+    // =========================
+    // 시장 데이터 로딩
+    // =========================
     async function loadMarketData() {
+
         try {
-            const response = await fetch('data.json?t=' + new Date().getTime());
-            if (!response.ok) throw new Error('Data not found');
-            globalData = await response.json();
-            
-            let qqqObj = globalData.QQQ || globalData.qqq || globalData;
-            let qqqClose = parseFloat(qqqObj.close || qqqObj.price || qqqObj['Close'] || 0);
-            let qqqChange = parseFloat(qqqObj.change || 0);
-            let qqqPct = parseFloat(qqqObj.pct || 0);
 
-            let ma120 = parseFloat(qqqObj.sma_120 || qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || 0);
-            let ma200 = parseFloat(qqqObj.sma_200 || qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || 0);
+            const response =
+                await fetch(
+                    'data.json?t=' +
+                    new Date().getTime()
+                );
 
-            let fxRate = parseFloat(globalData.fx_rate || globalData.exchange_rate || globalData.usd_krw || globalData.usdkrw || 0);
-            let fxChange = parseFloat(globalData.fx_change || 0);
-            let fxPct = parseFloat(globalData.fx_pct || 0);
+
+            if (!response.ok) {
+                throw new Error('Data not found');
+            }
+
+
+            globalData =
+                await response.json();
+
+
+            const qqqObj =
+                globalData.QQQ ||
+                globalData.qqq ||
+                globalData;
+
+
+            const qqqClose =
+                parseFloat(
+                    qqqObj.close ||
+                    qqqObj.price ||
+                    qqqObj['Close'] ||
+                    0
+                );
+
+
+            const ma120 =
+                parseFloat(
+                    qqqObj.sma_120 ||
+                    qqqObj.ma120 ||
+                    qqqObj.MA120 ||
+                    qqqObj.ma_120 ||
+                    qqqObj['120MA'] ||
+                    0
+                );
+
+
+            const ma200 =
+                parseFloat(
+                    qqqObj.sma_200 ||
+                    qqqObj.ma200 ||
+                    qqqObj.MA200 ||
+                    qqqObj.ma_200 ||
+                    qqqObj['200MA'] ||
+                    0
+                );
+
+
+            const fxRate =
+                parseFloat(
+                    globalData.fx_rate ||
+                    globalData.exchange_rate ||
+                    globalData.usd_krw ||
+                    globalData.usdkrw ||
+                    0
+                );
+
+
+            const formatNum =
+                (val, decimals = 2) =>
+                    (!val || val <= 0)
+                        ? '-'
+                        : val.toLocaleString(
+                            'en-US',
+                            {
+                                minimumFractionDigits: decimals,
+                                maximumFractionDigits: decimals
+                            }
+                        );
+
+
+            const formatKRW =
+                (val) =>
+                    (!val || val <= 0)
+                        ? '-'
+                        : Math.round(val).toLocaleString();
+
+
+            document.getElementById(
+                'marketData'
+            ).innerHTML = `
+                <b>최종 업데이트:</b>
+                ${globalData.updated_at || 'N/A'}<br>
+
+                <b>QQQ 종가:</b>
+                $${formatNum(qqqClose)}<br>
+
+                <b>QQQ 120일 이평:</b>
+                $${formatNum(ma120)}<br>
+
+                <b>QQQ 200일 이평:</b>
+                $${formatNum(ma200)}<br>
+
+                <b>환율 USD/KRW:</b>
+                ${formatKRW(fxRate)}원
+            `;
+
 
             updateSignalOnly();
 
-            const formatNum = (val, decimals = 2) => (!val || val <= 0) ? '-' : val.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-            const formatKRW = (val) => (!val || val <= 0) ? '-' : Math.round(val).toLocaleString();
 
-            const formatChange = (change, pct, unit = "") => {
-                if (pct > 0) {
-                    return `<span style="color:#d9534f; font-weight:bold;">▲ ${unit}${Math.abs(change)} (+${pct}%)</span>`;
-                } else if (pct < 0) {
-                    return `<span style="color:#0275d8; font-weight:bold;">▼ ${unit}${Math.abs(change)} (${pct}%)</span>`;
-                } else {
-                    return `<span style="color:#666;">- 0.00%</span>`;
-                }
-            };
-
-            document.getElementById('marketData').innerHTML = `
-                <b>최종 업데이트:</b> ${globalData.updated_at || globalData.timestamp || 'N/A'}<br>
-                <b>QQQ 종가:</b> $${formatNum(qqqClose)} ${formatChange(qqqChange, qqqPct, "$")}<br>
-                <b>QQQ 120일 이평:</b> $${formatNum(ma120)}<br>
-                <b>QQQ 200일 이평:</b> $${formatNum(ma200)}<br>
-                <b>환율 (USD/KRW):</b> ${formatKRW(fxRate)}원 ${formatChange(fxChange, fxPct, "₩")}
-            `;
         } catch (e) {
-            document.getElementById('marketData').innerHTML = '⚠️ data.json을 불러오는 데 실패했습니다.';
-            document.getElementById('signalStatus').className = "signal-card signal-bear";
-            document.getElementById('signalStatus').innerHTML = '⚠️ 데이터 로드 실패';
+
+            document.getElementById(
+                'marketData'
+            ).innerHTML =
+                '⚠️ data.json을 불러오는 데 실패했습니다.';
+
+
+            document.getElementById(
+                'signalStatus'
+            ).className =
+                "signal-card signal-bear";
+
+
+            document.getElementById(
+                'signalStatus'
+            ).innerHTML =
+                '⚠️ 데이터 로드 실패';
         }
     }
 
 
+    // =========================
+    // 시작
+    // =========================
     initHoldingInputs();
     calculateAndSave();
     loadMarketData();
+
 </script>
 
 </body>
