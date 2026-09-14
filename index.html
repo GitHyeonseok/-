@@ -3,117 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>투자 관리 및 대바닥 알리미</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>포트폴리오 리밸런싱 & 추세추종</title>
     <style>
-        body { font-family: 'Apple SD Gothic Neo', sans-serif; margin: 0; padding: 16px; background-color: #f8f9fa; color: #333; }
-        .card { background: white; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; font-size: 1.1rem; color: #1a73e8; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem; background: #eef3fc; padding: 10px; border-radius: 8px; }
-        label { display: block; margin-top: 8px; font-size: 0.85rem; color: #666; }
-        input, button { width: 100%; padding: 10px; margin-top: 4px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background-color: #1a73e8; color: white; border: none; font-weight: bold; margin-top: 12px; cursor: pointer; }
-        button.secondary { background-color: #6c757d; }
-        .badge { display: inline-block; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; }
-        .badge-green { background: #e6f4ea; color: #137333; }
-        .badge-red { background: #fce8e6; color: #c5221f; }
-        .badge-yellow { background: #fef7e0; color: #b06000; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 15px; background: #f4f6f8; color: #333; }
+        .card { background: white; padding: 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 12px; color: #1a1a1a; border-bottom: 2px solid #007aff; padding-bottom: 5px; }
+        label { font-size: 0.85rem; color: #666; display: block; margin-top: 8px; }
+        input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
+        button { width: 100%; padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 12px; font-size: 1rem; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        th, td { border: 1px solid #eee; padding: 8px; text-align: right; }
+        th { background: #f8f9fa; text-align: center; }
+        td:first-child { text-align: left; font-weight: bold; }
+        .buy { color: #d9534f; font-weight: bold; }
+        .sell { color: #0275d8; font-weight: bold; }
+        .status-box { padding: 10px; border-radius: 6px; background: #eef7ff; font-size: 0.9rem; margin-top: 8px; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 파이썬 자동 수집 데이터 표시 -->
-    <div class="card">
-        <h2>🌐 자동 수집 시황 데이터</h2>
-        <div class="info-grid">
-            <div>QQQ 현재가: <b id="qqqPrice">-</b></div>
-            <div>원/달러 환율: <b id="fxRate">-</b> 원</div>
-            <div>QQQ 120일선: <b id="sma120">-</b></div>
-            <div>QQQ 200일선: <b id="sma200">-</b></div>
-        </div>
-        <div style="font-size: 0.75rem; color: #888; margin-top: 6px;">마지막 자동 갱신: <span id="updatedAt">-</span></div>
-    </div>
+<div class="card">
+    <h2>📊 총 자산 입력 (원화 기준)</h2>
+    <label>기존 보유 자산 평가액 (원)</label>
+    <input type="number" id="existingAsset" value="9630000" placeholder="예: 9630000">
+    <label>신규 투입 실탄 (원)</label>
+    <input type="number" id="newCash" value="10000000" placeholder="예: 10000000">
+    <button onclick="calculateRebalance()">리밸런싱 목표 계산하기</button>
+</div>
 
-    <!-- 2. S5TW 입력 & 종합 판정 -->
-    <div class="card">
-        <h2>📊 S5TW 입력 & 최종 매매 판단</h2>
-        <label>현재 S5TW 수치 입력 (%)</label>
-        <input type="number" id="s5twInput" placeholder="예: 28.5 (Barchart 등에서 확인)" step="0.1">
-        <button onclick="evaluateStrategy()">지표 저장 및 신호 확인</button>
-        <div id="signalResult" style="margin-top: 12px;"></div>
-    </div>
+<div class="card">
+    <h2>🎯 통합 포트폴리오 리밸런싱 결과</h2>
+    <div id="totalSummary" class="status-box">버튼을 누르면 총 자산이 계산됩니다.</div>
+    <table>
+        <thead>
+            <tr>
+                <th>종목</th>
+                <th>목표비중</th>
+                <th>목표금액</th>
+                <th>조정 필요금액</th>
+            </tr>
+        </thead>
+        <tbody id="rebalanceTable">
+            <!-- 리밸런싱 데이터 출력 영역 -->
+        </tbody>
+    </table>
+</div>
 
-    <!-- 3. 백업 & 복구 -->
-    <div class="card">
-        <h2>📈 데이터 백업 및 복구</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <button onclick="exportData()">데이터 백업 (JSON)</button>
-            <button class="secondary" onclick="document.getElementById('importFile').click()">복구 (Import)</button>
-        </div>
-        <input type="file" id="importFile" style="display:none" onchange="importData(event)">
-    </div>
+<div class="card">
+    <h2>📈 시장 시그널 및 데이터 status</h2>
+    <div id="marketData" class="status-box">data.json 로딩 중...</div>
+</div>
 
-    <script>
-        let marketData = { qqq: { is_above_ma: true } };
-        let store = JSON.parse(localStorage.getItem('myInvestData')) || { s5twHistory: [], assetHistory: [] };
+<script>
+    // 목표 포트폴리오 비중 설정 (%)
+    const targetPortfolio = [
+        { name: "QLD (나스닥 2배)", weight: 30 },
+        { name: "QQQ (나스닥 1배)", weight: 20 },
+        { name: "비자 (V)", weight: 15 },
+        { name: "코카콜라 (KO) / 버크셔", weight: 15 },
+        { name: "KRX 금", weight: 10 },
+        { name: "외화RP (현금성)", weight: 10 }
+    ];
 
-        async function loadAutoData() {
-            try {
-                const res = await fetch('data.json?t=' + new Date().getTime());
-                marketData = await res.json();
-                
-                document.getElementById('qqqPrice').innerText = '$' + marketData.qqq.price;
-                document.getElementById('fxRate').innerText = marketData.fx_rate;
-                document.getElementById('sma120').innerText = '$' + marketData.qqq.sma_120;
-                document.getElementById('sma200').innerText = '$' + marketData.qqq.sma_200;
-                document.getElementById('updatedAt').innerText = marketData.updated_at;
-            } catch (e) {
-                console.log("data.json 로드 대기 중");
-            }
+    function calculateRebalance() {
+        const existing = parseFloat(document.getElementById('existingAsset').value) || 0;
+        const newMoney = parseFloat(document.getElementById('newCash').value) || 0;
+        const totalAsset = existing + newMoney;
+
+        document.getElementById('totalSummary').innerHTML = 
+            `<b>총 운용 자산:</b> ${totalAsset.toLocaleString()} 원 <br><small>(기존: ${existing.toLocaleString()}원 + 신규: ${newMoney.toLocaleString()}원)</small>`;
+
+        const tbody = document.getElementById('rebalanceTable');
+        tbody.innerHTML = '';
+
+        targetPortfolio.forEach(item => {
+            const targetAmount = totalAsset * (item.weight / 100);
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.name}</td>
+                <td style="text-align:center;">${item.weight}%</td>
+                <td>${Math.round(targetAmount).toLocaleString()} 원</td>
+                <td class="buy">+${Math.round(targetAmount).toLocaleString()} 원</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 자동 수집된 market data 로드
+    async function loadMarketData() {
+        try {
+            const response = await fetch('data.json');
+            if (!response.ok) throw new Error('Data not found');
+            const data = await response.json();
+            
+            document.getElementById('marketData').innerHTML = `
+                <b>최종 업데이트:</b> ${data.updated_at || 'N/A'}<br>
+                <b>QQQ 종가:</b> $${data.QQQ?.close || '-'}<br>
+                <b>QQQ 120일 이평:</b> $${data.QQQ?.ma120 || '-'}<br>
+                <b>QQQ 200일 이평:</b> $${data.QQQ?.ma200 || '-'}<br>
+                <b>환율 (USD/KRW):</b> ${data.exchange_rate || '-'} 원
+            `;
+        } catch (e) {
+            document.getElementById('marketData').innerHTML = 'data.json 파일이 없거나 로드할 수 없습니다.';
         }
+    }
 
-        function evaluateStrategy() {
-            const s5tw = parseFloat(document.getElementById('s5twInput').value);
-            if (isNaN(s5tw)) return alert("S5TW 수치를 입력해 주세요.");
+    // 초기 실행
+    calculateRebalance();
+    loadMarketData();
+</script>
 
-            const prevS5tw = store.s5twHistory.length > 0 ? store.s5twHistory[store.s5twHistory.length - 1].val : s5tw;
-            store.s5twHistory.push({ date: new Date().toISOString().split('T')[0], val: s5tw });
-            localStorage.setItem('myInvestData', JSON.stringify(store));
-
-            const qqqUp = marketData.qqq.is_above_ma;
-            const res = document.getElementById('signalResult');
-
-            if (!qqqUp) {
-                res.innerHTML = '<span class="badge badge-red">🚨 위험 신호</span> QQQ가 120/200일선 아래입니다. QLD를 정리하고 외화RP로 원금을 방어하세요.';
-            } else if (qqqUp && prevS5tw <= 30 && s5tw > 30) {
-                res.innerHTML = '<span class="badge badge-green">🔥 강력 매수 (대바닥 타점)</span> S5TW 30 돌파 완료! 준비된 1,500만 원 실탄을 포트폴리오 비중대로 집행하세요.';
-            } else if (qqqUp && s5tw <= 30) {
-                res.innerHTML = '<span class="badge badge-yellow">⏳ 과매도 관망</span> S5TW가 30 이하입니다. 30 위로 재돌파할 때까지 외화RP에 대기하세요.';
-            } else {
-                res.innerHTML = '<span class="badge badge-green">✅ 상승 추세 유지</span> 현금(외화RP) 상태를 유지하며 달러 이자를 수취하세요.';
-            }
-        }
-
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store));
-            const dl = document.createElement('a');
-            dl.setAttribute("href", dataStr);
-            dl.setAttribute("download", `invest_backup_${new Date().toISOString().split('T')[0]}.json`);
-            dl.click();
-        }
-
-        function importData(e) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                store = JSON.parse(evt.target.result);
-                localStorage.setItem('myInvestData', JSON.stringify(store));
-                alert("데이터 복구가 완료되었습니다.");
-                location.reload();
-            };
-            reader.readAsText(e.target.files[0]);
-        }
-
-        loadAutoData();
-    </script>
 </body>
 </html>
