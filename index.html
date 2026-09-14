@@ -22,6 +22,7 @@
 </head>
 <body>
 
+<!-- 1. 자산 입력 카드 -->
 <div class="card">
     <h2>📊 총 자산 입력 (원화 기준)</h2>
     <label>기존 보유 자산 평가액 (원)</label>
@@ -31,6 +32,7 @@
     <button onclick="calculateRebalance()">리밸런싱 목표 계산하기</button>
 </div>
 
+<!-- 2. 리밸런싱 결과 카드 -->
 <div class="card">
     <h2>🎯 통합 포트폴리오 리밸런싱 결과</h2>
     <div id="totalSummary" class="status-box" style="margin-bottom:10px;">버튼을 누르면 총 자산이 계산됩니다.</div>
@@ -38,9 +40,9 @@
         <thead>
             <tr>
                 <th style="width: 35%;">종목</th>
-                <th style="width: 18%;">목표비중</th>
-                <th style="width: 235%;">목표금액</th>
-                <th style="width: 24%;">조정 필요금액</th>
+                <th style="width: 15%;">목표비중</th>
+                <th style="width: 25%;">목표금액</th>
+                <th style="width: 25%;">조정 필요금액</th>
             </tr>
         </thead>
         <tbody id="rebalanceTable">
@@ -48,6 +50,7 @@
     </table>
 </div>
 
+<!-- 3. 시장 데이터 status 카드 (딱 1개만 배치) -->
 <div class="card">
     <h2>📈 시장 시그널 및 데이터 status</h2>
     <div id="marketData" class="status-box">data.json 로딩 중...</div>
@@ -58,7 +61,7 @@
         { name: "QLD (나스닥 2배)", weight: 30 },
         { name: "QQQ (나스닥 1배)", weight: 20 },
         { name: "비자 (V)", weight: 15 },
-        { name: "코카콜라 / 버크셔", weight: 15 },
+        { name: "코카콜라 (KO)", weight: 15 },
         { name: "KRX 금", weight: 10 },
         { name: "외화RP (현금성)", weight: 10 }
     ];
@@ -90,25 +93,18 @@
 
     async function loadMarketData() {
         try {
-            // 강제 캐시 삭제를 위해 타임스탬프 파라미터 추가
             const response = await fetch('data.json?t=' + new Date().getTime());
             if (!response.ok) throw new Error('Data not found');
             const data = await response.json();
             
-            // 파이썬 객체 구조 자동 탐색
+            // QQQ 및 파이썬 저장 형태 자동 매핑
             let qqqObj = data.QQQ || data.qqq || data;
-            
-            // QQQ 종가
             let qqqClose = qqqObj.close || qqqObj.price || qqqObj['Close'] || '-';
             
-            // 이동평균선 (다양한 파이썬 변수명 자동 매핑)
-            let ma120 = qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || qqqObj['120일이평'] || '-';
-            let ma200 = qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || qqqObj['200일이평'] || '-';
+            let ma120 = qqqObj.ma120 || qqqObj.MA120 || qqqObj.ma_120 || qqqObj['120MA'] || '-';
+            let ma200 = qqqObj.ma200 || qqqObj.MA200 || qqqObj.ma_200 || qqqObj['200MA'] || '-';
+            let fxRate = data.exchange_rate || data.usd_krw || data.usdkrw || data.fx || data.rate || '-';
 
-            // 환율
-            let fxRate = data.exchange_rate || data.usd_krw || data.usdkrw || data.fx || data.rate || data.KRW || '-';
-
-            // 숫자 포맷팅 함수
             const formatNum = (val, decimals = 2) => {
                 if (val === '-' || val === null || val === undefined) return '-';
                 let num = parseFloat(val);
@@ -133,270 +129,6 @@
         }
     }
 
-    calculateRebalance();
-    loadMarketData();
-</script>
-
-</body>
-</html>
-        <thead>
-            <tr>
-                <th>종목</th>
-                <th>목표비중</th>
-                <th>목표금액</th>
-                <th>조정 필요금액</th>
-            </tr>
-        </thead>
-        <tbody id="rebalanceTable">
-        </tbody>
-    </table>
-</div>
-
-<div class="card">
-    <h2>📈 시장 시그널 및 데이터 status</h2>
-    <div id="marketData" class="status-box">data.json 로딩 중...</div>
-</div>
-
-<script>
-    const targetPortfolio = [
-        { name: "QLD (나스닥 2배)", weight: 30 },
-        { name: "QQQ (나스닥 1배)", weight: 20 },
-        { name: "비자 (V)", weight: 15 },
-        { name: "코카콜라 (KO) / 버크셔", weight: 15 },
-        { name: "KRX 금", weight: 10 },
-        { name: "외화RP (현금성)", weight: 10 }
-    ];
-
-    function calculateRebalance() {
-        const existing = parseFloat(document.getElementById('existingAsset').value) || 0;
-        const newMoney = parseFloat(document.getElementById('newCash').value) || 0;
-        const totalAsset = existing + newMoney;
-
-        document.getElementById('totalSummary').innerHTML = 
-            `<b>총 운용 자산:</b> ${totalAsset.toLocaleString()} 원 <br><small>(기존: ${existing.toLocaleString()}원 + 신규: ${newMoney.toLocaleString()}원)</small>`;
-
-        const tbody = document.getElementById('rebalanceTable');
-        tbody.innerHTML = '';
-
-        targetPortfolio.forEach(item => {
-            const targetAmount = totalAsset * (item.weight / 100);
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${item.name}</td>
-                <td style="text-align:center;">${item.weight}%</td>
-                <td>${Math.round(targetAmount).toLocaleString()} 원</td>
-                <td class="buy">+${Math.round(targetAmount).toLocaleString()} 원</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    async function loadMarketData() {
-        try {
-            const response = await fetch('data.json?t=' + new Date().getTime());
-            if (!response.ok) throw new Error('Data not found');
-            const data = await response.json();
-            
-            // data.json의 파이썬 수집 키 구조 자동 추출 (안전한 매핑)
-            let qqqClose = '-', ma120 = '-', ma200 = '-', fxRate = '-';
-
-            if (data.QQQ) {
-                qqqClose = data.QQQ.close || data.QQQ.price || data.QQQ['Close'] || '-';
-                ma120 = data.QQQ.ma120 || data.QQQ.MA120 || data.QQQ['120MA'] || '-';
-                ma200 = data.QQQ.ma200 || data.QQQ.MA200 || data.QQQ['200MA'] || '-';
-            } else if (data.qqq) {
-                qqqClose = data.qqq.close || data.qqq.price || '-';
-                ma120 = data.qqq.ma120 || '-';
-                ma200 = data.qqq.ma200 || '-';
-            }
-
-            fxRate = data.exchange_rate || data.usd_krw || data.usdkrw || data.fx || '-';
-
-            // 숫자 포맷 정리
-            if (!isNaN(qqqClose) && qqqClose !== '-') qqqClose = Number(qqqClose).toFixed(2);
-            if (!isNaN(ma120) && ma120 !== '-') ma120 = Number(ma120).toFixed(2);
-            if (!isNaN(ma200) && ma200 !== '-') ma200 = Number(ma200).toFixed(2);
-            if (!isNaN(fxRate) && fxRate !== '-') fxRate = Number(fxRate).toLocaleString();
-
-            document.getElementById('marketData').innerHTML = `
-                <b>최종 업데이트:</b> ${data.updated_at || 'N/A'}<br>
-                <b>QQQ 종가:</b> $${qqqClose}<br>
-                <b>QQQ 120일 이평:</b> $${ma120}<br>
-                <b>QQQ 200일 이평:</b> $${ma200}<br>
-                <b>환율 (USD/KRW):</b> ${fxRate} 원
-            `;
-        } catch (e) {
-            document.getElementById('marketData').innerHTML = 'data.json 데이터를 읽어오지 못했습니다.';
-        }
-    }
-
-    calculateRebalance();
-    loadMarketData();
-</script>
-
-</body>
-</html>
-        <thead>
-            <tr>
-                <th>종목</th>
-                <th>목표비중</th>
-                <th>목표금액</th>
-                <th>조정 필요금액</th>
-            </tr>
-        </thead>
-        <tbody id="rebalanceTable">
-        </tbody>
-    </table>
-</div>
-
-<div class="card">
-    <h2>📈 시장 시그널 및 데이터 status</h2>
-    <div id="marketData" class="status-box">data.json 로딩 중...</div>
-</div>
-
-<script>
-    const targetPortfolio = [
-        { name: "QLD (나스닥 2배)", weight: 30 },
-        { name: "QQQ (나스닥 1배)", weight: 20 },
-        { name: "비자 (V)", weight: 15 },
-        { name: "코카콜라 (KO) / 버크셔", weight: 15 },
-        { name: "KRX 금", weight: 10 },
-        { name: "외화RP (현금성)", weight: 10 }
-    ];
-
-    function calculateRebalance() {
-        const existing = parseFloat(document.getElementById('existingAsset').value) || 0;
-        const newMoney = parseFloat(document.getElementById('newCash').value) || 0;
-        const totalAsset = existing + newMoney;
-
-        document.getElementById('totalSummary').innerHTML = 
-            `<b>총 운용 자산:</b> ${totalAsset.toLocaleString()} 원 <br><small>(기존: ${existing.toLocaleString()}원 + 신규: ${newMoney.toLocaleString()}원)</small>`;
-
-        const tbody = document.getElementById('rebalanceTable');
-        tbody.innerHTML = '';
-
-        targetPortfolio.forEach(item => {
-            const targetAmount = totalAsset * (item.weight / 100);
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${item.name}</td>
-                <td style="text-align:center;">${item.weight}%</td>
-                <td>${Math.round(targetAmount).toLocaleString()} 원</td>
-                <td class="buy">+${Math.round(targetAmount).toLocaleString()} 원</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    async function loadMarketData() {
-        try {
-            // 캐시 방지를 위해 타임스탬프 추가
-            const response = await fetch('data.json?t=' + new Date().getTime());
-            if (!response.ok) throw new Error('Data not found');
-            const data = await response.json();
-            
-            const qqqData = data.QQQ || {};
-            const qqqClose = qqqData.close !== undefined ? Number(qqqData.close).toFixed(2) : '-';
-            const ma120 = qqqData.ma120 !== undefined ? Number(qqqData.ma120).toFixed(2) : '-';
-            const ma200 = qqqData.ma200 !== undefined ? Number(qqqData.ma200).toFixed(2) : '-';
-            const fxRate = data.exchange_rate !== undefined ? Number(data.exchange_rate).toLocaleString() : '-';
-
-            document.getElementById('marketData').innerHTML = `
-                <b>최종 업데이트:</b> ${data.updated_at || 'N/A'}<br>
-                <b>QQQ 종가:</b> $${qqqClose}<br>
-                <b>QQQ 120일 이평:</b> $${ma120}<br>
-                <b>QQQ 200일 이평:</b> $${ma200}<br>
-                <b>환율 (USD/KRW):</b> ${fxRate} 원
-            `;
-        } catch (e) {
-            document.getElementById('marketData').innerHTML = 'data.json 데이터를 읽어오지 못했습니다.';
-        }
-    }
-
-    calculateRebalance();
-    loadMarketData();
-</script>
-
-</body>
-</html>
-    <table>
-        <thead>
-            <tr>
-                <th>종목</th>
-                <th>목표비중</th>
-                <th>목표금액</th>
-                <th>조정 필요금액</th>
-            </tr>
-        </thead>
-        <tbody id="rebalanceTable">
-            <!-- 리밸런싱 데이터 출력 영역 -->
-        </tbody>
-    </table>
-</div>
-
-<div class="card">
-    <h2>📈 시장 시그널 및 데이터 status</h2>
-    <div id="marketData" class="status-box">data.json 로딩 중...</div>
-</div>
-
-<script>
-    // 목표 포트폴리오 비중 설정 (%)
-    const targetPortfolio = [
-        { name: "QLD (나스닥 2배)", weight: 30 },
-        { name: "QQQ (나스닥 1배)", weight: 20 },
-        { name: "비자 (V)", weight: 15 },
-        { name: "코카콜라 (KO) / 버크셔", weight: 15 },
-        { name: "KRX 금", weight: 10 },
-        { name: "외화RP (현금성)", weight: 10 }
-    ];
-
-    function calculateRebalance() {
-        const existing = parseFloat(document.getElementById('existingAsset').value) || 0;
-        const newMoney = parseFloat(document.getElementById('newCash').value) || 0;
-        const totalAsset = existing + newMoney;
-
-        document.getElementById('totalSummary').innerHTML = 
-            `<b>총 운용 자산:</b> ${totalAsset.toLocaleString()} 원 <br><small>(기존: ${existing.toLocaleString()}원 + 신규: ${newMoney.toLocaleString()}원)</small>`;
-
-        const tbody = document.getElementById('rebalanceTable');
-        tbody.innerHTML = '';
-
-        targetPortfolio.forEach(item => {
-            const targetAmount = totalAsset * (item.weight / 100);
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${item.name}</td>
-                <td style="text-align:center;">${item.weight}%</td>
-                <td>${Math.round(targetAmount).toLocaleString()} 원</td>
-                <td class="buy">+${Math.round(targetAmount).toLocaleString()} 원</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    // 자동 수집된 market data 로드
-    async function loadMarketData() {
-        try {
-            const response = await fetch('data.json');
-            if (!response.ok) throw new Error('Data not found');
-            const data = await response.json();
-            
-            document.getElementById('marketData').innerHTML = `
-                <b>최종 업데이트:</b> ${data.updated_at || 'N/A'}<br>
-                <b>QQQ 종가:</b> $${data.QQQ?.close || '-'}<br>
-                <b>QQQ 120일 이평:</b> $${data.QQQ?.ma120 || '-'}<br>
-                <b>QQQ 200일 이평:</b> $${data.QQQ?.ma200 || '-'}<br>
-                <b>환율 (USD/KRW):</b> ${data.exchange_rate || '-'} 원
-            `;
-        } catch (e) {
-            document.getElementById('marketData').innerHTML = 'data.json 파일이 없거나 로드할 수 없습니다.';
-        }
-    }
-
-    // 초기 실행
     calculateRebalance();
     loadMarketData();
 </script>
