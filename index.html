@@ -154,6 +154,7 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 <button onclick="exportBackup()">JSON 백업파일 저장</button>
 <button class="gray" onclick="document.getElementById('backupFile').click()">백업파일 불러오기</button>
 <input accept=".json" class="hidden" id="backupFile" onchange="importBackup(event)" type="file"/>
+<button class="gray" onclick="showAutoBackups()">자동 백업 기록 보기 / 복구</button><div class="hidden" id="autoBackupPanel" style="margin-top:10px"></div>
 <button class="red" onclick="resetEverything()">모든 개인 데이터 초기화</button>
 <p class="note">개인 데이터는 이 브라우저의 localStorage에 저장됩니다. 휴대폰 교체 전에는 백업을 권장합니다.</p>
 </div></div>
@@ -162,7 +163,10 @@ const portfolio=[
 {id:"qld",name:"QLD",weight:30},{id:"qqq",name:"QQQ",weight:20},{id:"voo",name:"VOO",weight:20},
 {id:"brkb",name:"버크셔 B",weight:15},{id:"visa",name:"Visa",weight:5},{id:"gold",name:"KRX 금",weight:10}
 ];
-const STORAGE_KEY="wealthManagerDataV3";
+const STORAGE_KEY="wealthManagerDataV3"; // 영구 고정 저장키
+const LEGACY_STORAGE_KEYS=["wealthManagerDataV2","wealthManagerDataV1","wealthManagerData"];
+const AUTO_BACKUP_KEY="wealthManagerAutoBackups";
+const MAX_AUTO_BACKUPS=12;
 let marketDataGlobal=null, recognizedAssets=[];
 
 function defaultData(){return{
@@ -172,7 +176,8 @@ holdings:{qld:0,qqq:0,voo:0,brkb:0,visa:0,gold:0},
 investmentPrincipal:0,incomeReceived:0,monthlyIncome:0,fixedExpense:0,livingExpense:0,otherExpense:0,
 s5tw:0,s5twBottomDetected:false,trades:[],snapshots:[],workerUrl:""
 }}
-function loadData(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");if(!x)return defaultData();return{...defaultData(),...x,holdings:{...defaultData().holdings,...(x.holdings||{})}}}catch{return defaultData()}}
+function normalizeData(x){const d=defaultData(),src=(x&&x.data)?x.data:(x||{});return{...d,...src,holdings:{...d.holdings,...(src.holdings||{})}}}
+function loadData(){try{const cur=localStorage.getItem(STORAGE_KEY);if(cur)return normalizeData(JSON.parse(cur));for(const key of LEGACY_STORAGE_KEYS){const raw=localStorage.getItem(key);if(raw){const d=normalizeData(JSON.parse(raw));localStorage.setItem(STORAGE_KEY,JSON.stringify(d));localStorage.setItem("wealthManagerMigratedFrom",key);return d}}}catch(e){console.error(e)}return defaultData()}
 let appData=loadData();
 
 // 이전 버전에서 AI 기타종목이 "기타 자산"에 저장된 뒤
@@ -193,6 +198,12 @@ let appData=loadData();
 })();
 const money=v=>Math.round(Number(v)||0).toLocaleString()+"원";
 const num=id=>Number(document.getElementById(id)?.value)||0;
+function getAutoBackups(){try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"[]")}catch{return[]}}
+function createAutoBackup(reason="자동 저장"){const list=getAutoBackups(),payload=JSON.stringify(appData);if(list[0]?.payload===payload)return;list.unshift({at:new Date().toISOString(),reason,payload});localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(list.slice(0,MAX_AUTO_BACKUPS)))}
+function persist(reason="자동 저장"){createAutoBackup(reason);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData))}
+function showAutoBackups(){const panel=document.getElementById("autoBackupPanel"),list=getAutoBackups();panel.classList.remove("hidden");panel.innerHTML=list.length?'<div class="status"><b>최근 자동 백업</b><br>'+list.map((b,i)=>`${new Date(b.at).toLocaleString()} · ${escapeHtml(b.reason)} <button class="smallbtn" onclick="restoreAutoBackup(${i})">복구</button>`).join("<br>")+'</div>':'<div class="status">자동 백업 기록이 없습니다.</div>'}
+function restoreAutoBackup(i){const b=getAutoBackups()[i];if(!b||!confirm("이 시점으로 복구할까요? 현재 상태도 먼저 백업됩니다."))return;createAutoBackup("복구 직전");appData=normalizeData(JSON.parse(b.payload));localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));location.reload()}
+
 
 function createHoldingInputs(){const t=document.getElementById("holdingInputs");t.innerHTML="";portfolio.forEach(p=>{t.insertAdjacentHTML("beforeend",`<tr><td><b>${p.name}</b></td><td style="text-align:center">${p.weight}%</td><td><input type="number" id="holding_${p.id}" value="${appData.holdings[p.id]||0}" onchange="saveAll()"></td></tr>`);})}
 function populateInputs(){
@@ -208,7 +219,7 @@ function saveAll(){
 appData.goalDate=document.getElementById("goalDate").value;
 appData.workerUrl=document.getElementById("workerUrl").value.trim();
 portfolio.forEach(p=>appData.holdings[p.id]=num("holding_"+p.id));
-localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderAll();
+persist("입력값 저장");renderAll();
 }
 function renderAll(){renderDashboard();renderGoal();renderPerformance();renderCashflow();renderRebalance();renderTrades();renderSnapshots();updateSignal()}
 function renderDashboard(){const i=getInvestmentValue(),n=getNetWorth();document.getElementById("netWorthDisplay").innerText=money(n);document.getElementById("investmentDisplay").innerText=money(i);document.getElementById("safeMoneyDisplay").innerText=money(Number(appData.emergency||0)+Number(appData.plannedExpense||0));document.getElementById("rpDisplay").innerText=money(appData.foreignRP)}
@@ -218,7 +229,7 @@ function renderCashflow(){const i=Number(appData.monthlyIncome)||0,e=Number(appD
 function updateRebalanceDeploy(){
   const input=document.getElementById("rebalanceRpDeploy");
   appData.rebalanceRpDeploy=Math.max(0,Number(input?.value)||0);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+  persist("리밸런싱 설정");
   renderRebalance();
 }
 function renderRebalance(){
@@ -274,7 +285,7 @@ function renderRebalance(){
   });
 }
 
-function saveS5TW(){const v=num("s5twInput");appData.s5tw=v;if(v>0&&v<=30)appData.s5twBottomDetected=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));updateSignal()}
+function saveS5TW(){const v=num("s5twInput");appData.s5tw=v;if(v>0&&v<=30)appData.s5twBottomDetected=true;persist("S5TW 저장");updateSignal()}
 function getTrendMarketData(){
   // 새 형식(ndx/price) 우선. 첫 자동 업데이트 전에는 기존 data.json 형식도 임시 호환.
   const n=marketDataGlobal?.ndx||marketDataGlobal?.NDX||marketDataGlobal?.qqq||marketDataGlobal?.QQQ||{};
@@ -285,19 +296,19 @@ function getTrendMarketData(){
   };
 }
 function updateSignal(){if(!marketDataGlobal){signalStatus.className="signal wait";signalStatus.innerText="⏳ 시장 데이터 확인 중";return}const n=getTrendMarketData(),price=n.price,m120=n.sma120,m200=n.sma200,s=Number(appData.s5tw)||0;if(!price||!m120||!m200){signalStatus.className="signal wait";signalStatus.innerText="시장 데이터 부족";signalDetail.innerHTML="NASDAQ-100 데이터를 확인하지 못했습니다.";return}const trend=price>m120&&price>m200;if(!trend){signalStatus.className="signal risk";signalStatus.innerText="🛡️ RISK-OFF";signalDetail.innerHTML="NASDAQ-100이 120일선 또는 200일선 아래입니다.";return}if(s>0&&s<=30){signalStatus.className="signal wait";signalStatus.innerText="🎯 S5TW 과매도 진입";signalDetail.innerHTML=`NASDAQ-100 상승추세 유지 + S5TW ${s}% — 30 위 재돌파를 기다립니다.`;return}if(appData.s5twBottomDetected&&s>30){signalStatus.className="signal buySignal";signalStatus.innerText="🚀 공격 매수 조건 충족";signalDetail.innerHTML=`NASDAQ-100 추세 유지 + S5TW 30 이하 진입 후 ${s}%로 재돌파했습니다.`;return}signalStatus.className="signal wait";signalStatus.innerText="👀 관망";signalDetail.innerHTML="NASDAQ-100 상승추세 유지. 아직 S5TW 30 이하 → 재돌파 사이클이 없습니다."}
-function resetSignalCycle(){if(confirm("S5TW 30 이하 진입 기록을 초기화할까요?")){appData.s5twBottomDetected=false;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));updateSignal()}}
+function resetSignalCycle(){if(confirm("S5TW 30 이하 진입 기록을 초기화할까요?")){appData.s5twBottomDetected=false;persist("S5TW 저장");updateSignal()}}
 async function loadMarketData(){try{const r=await fetch("data.json?t="+Date.now());if(!r.ok)throw 0;marketDataGlobal=await r.json();const n=getTrendMarketData(),p=n.price,a=n.sma120,b=n.sma200,fx=Number(marketDataGlobal.fx_rate)||0;marketData.innerHTML=`<b>최종 업데이트:</b> ${marketDataGlobal.updated_at||"-"}<br><b>NASDAQ-100 (^NDX):</b> ${p?p.toLocaleString():"-"}<br><b>120일선:</b> ${a?a.toLocaleString():"-"}<br><b>200일선:</b> ${b?b.toLocaleString():"-"}<br><b>USD/KRW:</b> ${fx?fx.toLocaleString()+"원":"-"}<br><b>추세:</b> ${p&&a&&b?(p>a&&p>b?"✅ 상승":"⚠️ 이탈"):"⏳ 데이터 부족"}`;updateSignal()}catch{marketData.innerHTML="⚠️ data.json을 불러오지 못했습니다."}}
 
-function addTrade(){const date=tradeDate.value,ticker=tradeTicker.value,type=tradeType.value,amount=num("tradeAmount"),memo=tradeMemo.value.trim();if(!date||!amount)return alert("날짜와 거래금액을 입력하세요.");const trend=getTrendMarketData();appData.trades.unshift({id:Date.now(),date,ticker,type,amount,memo,s5tw:appData.s5tw||null,ndx:trend.price||null});localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));tradeAmount.value="";tradeMemo.value="";renderTrades()}
-function deleteTrade(id){appData.trades=appData.trades.filter(x=>x.id!==id);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderTrades()}
+function addTrade(){const date=tradeDate.value,ticker=tradeTicker.value,type=tradeType.value,amount=num("tradeAmount"),memo=tradeMemo.value.trim();if(!date||!amount)return alert("날짜와 거래금액을 입력하세요.");const trend=getTrendMarketData();appData.trades.unshift({id:Date.now(),date,ticker,type,amount,memo,s5tw:appData.s5tw||null,ndx:trend.price||null});persist("매매일지 추가");tradeAmount.value="";tradeMemo.value="";renderTrades()}
+function deleteTrade(id){appData.trades=appData.trades.filter(x=>x.id!==id);persist("매매일지 변경");renderTrades()}
 function renderTrades(){tradeTable.innerHTML=appData.trades.length?"":`<tr><td colspan="6" style="text-align:center;color:#777">기록 없음</td></tr>`;appData.trades.forEach(t=>tradeTable.insertAdjacentHTML("beforeend",`<tr><td>${t.date}</td><td>${t.ticker}</td><td>${t.type}</td><td>${money(t.amount)}</td><td style="text-align:left">${escapeHtml(t.memo||"-")}</td><td><button class="smallbtn delete" onclick="deleteTrade(${t.id})">삭제</button></td></tr>`))}
-function addSnapshot(){saveAll();const date=new Date().toISOString().slice(0,10),value=getNetWorth(),ex=appData.snapshots.find(s=>s.date===date);if(ex)ex.value=value;else appData.snapshots.push({id:Date.now(),date,value});appData.snapshots.sort((a,b)=>a.date.localeCompare(b.date));localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderSnapshots()}
-function deleteSnapshot(id){appData.snapshots=appData.snapshots.filter(x=>x.id!==id);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderSnapshots()}
+function addSnapshot(){saveAll();const date=new Date().toISOString().slice(0,10),value=getNetWorth(),ex=appData.snapshots.find(s=>s.date===date);if(ex)ex.value=value;else appData.snapshots.push({id:Date.now(),date,value});appData.snapshots.sort((a,b)=>a.date.localeCompare(b.date));persist("순자산 기록 변경");renderSnapshots()}
+function deleteSnapshot(id){appData.snapshots=appData.snapshots.filter(x=>x.id!==id);persist("순자산 기록 변경");renderSnapshots()}
 function renderSnapshots(){snapshotTable.innerHTML="";if(!appData.snapshots.length){snapshotSummary.innerHTML="아직 기록이 없습니다.";snapshotTable.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#777">기록 없음</td></tr>`;return}const first=appData.snapshots[0],last=appData.snapshots.at(-1);snapshotSummary.innerHTML=`<b>첫 기록:</b> ${money(first.value)}<br><b>최근:</b> ${money(last.value)}<br><b>누적 변화:</b> ${money(last.value-first.value)}`;[...appData.snapshots].reverse().forEach(s=>{const i=appData.snapshots.findIndex(x=>x.id===s.id),d=i>0?s.value-appData.snapshots[i-1].value:0;snapshotTable.insertAdjacentHTML("beforeend",`<tr><td>${s.date}</td><td>${money(s.value)}</td><td class="${d>=0?"positive":"negative"}">${d>=0?"+":""}${money(d)}</td><td><button class="smallbtn delete" onclick="deleteSnapshot(${s.id})">삭제</button></td></tr>`)})}
 
 function exportBackup(){saveAll();const blob=new Blob([JSON.stringify({version:3,exportedAt:new Date().toISOString(),data:appData},null,2)],{type:"application/json"}),u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download="asset-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(u)}
 function importBackup(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=x=>{try{const p=JSON.parse(x.target.result),d=p.data||p;if(!confirm("현재 데이터를 백업파일로 교체할까요?"))return;appData={...defaultData(),...d,holdings:{...defaultData().holdings,...(d.holdings||{})}};localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));location.reload()}catch{alert("올바른 백업파일이 아닙니다.")}};r.readAsText(f)}
-function resetEverything(){if(confirm("정말 모든 개인 데이터를 초기화할까요?")&&confirm("마지막 확인입니다.")){localStorage.removeItem(STORAGE_KEY);location.reload()}}
+function resetEverything(){if(confirm("현재 데이터를 초기화할까요? 자동 백업 기록은 남겨둡니다.")&&confirm("마지막 확인입니다.")){createAutoBackup("전체 초기화 직전");localStorage.removeItem(STORAGE_KEY);location.reload()}}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 
 function previewImage(e){const f=e.target.files[0];if(!f)return;const img=imagePreview;img.src=URL.createObjectURL(f);img.classList.remove("hidden");aiResult.classList.add("hidden")}
@@ -312,7 +323,7 @@ async function analyzeScreenshot(){
   const file=assetImage.files[0],url=workerUrl.value.trim().replace(/\/+$/,"");
   if(!file)return alert("먼저 스크린샷을 선택하세요.");
   if(!url)return alert("Cloudflare Worker 주소를 입력하세요.");
-  appData.workerUrl=url;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+  appData.workerUrl=url;persist("분석 서버 주소 저장");
   aiLoading.classList.remove("hidden");aiResult.classList.add("hidden");
   try{
     const imageDataUrl=await fileToCompressedDataUrl(file);
@@ -358,7 +369,7 @@ function applyRecognizedAssets(){
       appData[id]=mode==="add"?(Number(appData[id])||0)+amount:amount;
     }
   }
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+  persist("AI 인식 자산 반영");
   createHoldingInputs();populateInputs();renderAll();
   alert("확인한 자산을 반영했습니다.");
   window.scrollTo({top:document.querySelectorAll(".card")[0].offsetTop-10,behavior:"smooth"});
