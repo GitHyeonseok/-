@@ -2,12 +2,8 @@ name: Auto Market Data Update
 
 on:
   schedule:
-    # 미국장 진행 중 여러 차례 갱신 (UTC 기준)
-    # 한국시간: 23:00, 00:00, 01:00, 02:00, 03:00, 04:00, 05:00, 06:00
-    # 서머타임/휴장일에도 실행될 수 있으며 yfinance의 최신 가용 가격을 사용
+    # 평일 UTC 14:00~21:00 매시 실행
     - cron: '0 14-21 * * 1-5'
-
-  # 필요할 때 GitHub Actions에서 직접 실행 가능
   workflow_dispatch:
 
 permissions:
@@ -16,6 +12,9 @@ permissions:
 jobs:
   update-data:
     runs-on: ubuntu-latest
+
+    env:
+      KRX_API_KEY: ${{ secrets.KRX_API_KEY }}
 
     steps:
       - name: Checkout Repository
