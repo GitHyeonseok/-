@@ -1,55 +1,55 @@
 {
-    "updated_at": "2026-09-18 01:06:20 KST",
-    "fx_rate": 1380.38,
-    "fx_change": 16.81,
-    "fx_pct": 1.23,
+    "updated_at": "2026-09-18 01:33:16 KST",
+    "fx_rate": 1380.7,
+    "fx_change": 17.13,
+    "fx_pct": 1.26,
     "ndx": {
-        "price": 29415.31,
-        "change": 470.25,
-        "pct": 1.62,
-        "sma_120": 28575.26,
-        "sma_200": 27208.62
+        "price": 29420.54,
+        "change": 475.48,
+        "pct": 1.64,
+        "sma_120": 28575.3,
+        "sma_200": 27208.64
     },
     "prices": {
         "qld": {
             "ticker": "QLD",
             "name": "QLD",
-            "price": 89.775,
+            "price": 89.8,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 01:06:20 KST"
+            "updated_at": "2026-09-18 01:33:16 KST"
         },
         "qqq": {
             "ticker": "QQQ",
             "name": "QQQ",
-            "price": 716.144,
+            "price": 716.25,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 01:06:20 KST"
+            "updated_at": "2026-09-18 01:33:16 KST"
         },
         "voo": {
             "ticker": "VOO",
             "name": "VOO",
-            "price": 700.635,
+            "price": 700.59,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 01:06:20 KST"
+            "updated_at": "2026-09-18 01:33:16 KST"
         },
         "brkb": {
             "ticker": "BRK-B",
             "name": "BRK.B",
-            "price": 511.735,
+            "price": 509.528,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 01:06:20 KST"
+            "updated_at": "2026-09-18 01:33:16 KST"
         },
         "visa": {
             "ticker": "V",
             "name": "Visa",
-            "price": 371.185,
+            "price": 370.82,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 01:06:20 KST"
+            "updated_at": "2026-09-18 01:33:16 KST"
         },
         "gold": {
             "ticker": null,
@@ -57,7 +57,7 @@
             "price": 0,
             "currency": "KRW",
             "unit": "g",
-            "updated_at": "2026-09-18 01:06:20 KST",
+            "updated_at": "2026-09-18 01:33:16 KST",
             "status": "unavailable"
         }
     }
