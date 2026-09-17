@@ -112,7 +112,7 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 
 <p class="note">외화RP와 원화현금을 동시에 투입할 수 있습니다. 추가매수 모드에서는 기존 종목을 매도하지 않고, 목표비중과의 제곱오차가 최소가 되도록 새 투자금을 배분합니다.</p>
 <div class="status" id="rebalanceSummary"></div>
-<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>투자 후</th><th>조정</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
+<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>투자 후</th><th>조정금액</th><th>현재가</th><th>예상수량</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
 <p class="note">기타 투자자산은 목표 포트폴리오 6종목의 비중 계산에서 제외합니다. 전체 리밸런싱 모드에서만 기존 종목 매도를 계산합니다.</p>
 </div><div class="card">
 <h2>🎯 7. 자산 목표</h2>
@@ -330,6 +330,15 @@ function renderRebalance(){
         ? `<span class="sell">${money(diff)} 매도</span>`
         : "0원";
 
+    const priceInfo=marketDataGlobal?.prices?.[p.id]||null;
+    const fx=Number(marketDataGlobal?.fx_rate)||0;
+    const rawPrice=Number(priceInfo?.price)||0;
+    const isUSD=priceInfo?.currency==="USD";
+    const krwPerUnit=rawPrice>0?(isUSD&&fx>0?rawPrice*fx:rawPrice):0;
+    const qty=krwPerUnit>0?Math.floor(Math.abs(diff)/krwPerUnit):0;
+    const priceText=rawPrice>0?(isUSD?`$${rawPrice.toLocaleString(undefined,{maximumFractionDigits:2})}`:`${money(rawPrice)}`):"가격 없음";
+    const qtyText=Math.abs(diff)<=1?"-":krwPerUnit>0?`${qty.toLocaleString()}${priceInfo?.unit||"주"} ${diff>0?"매수":"매도"}`:"계산 불가";
+
     rebalanceTable.insertAdjacentHTML("beforeend",
       `<tr>
         <td><b>${p.name}</b></td>
@@ -337,6 +346,8 @@ function renderRebalance(){
         <td>${currentWeight.toFixed(1)}%</td>
         <td>${afterWeight.toFixed(1)}%</td>
         <td>${action}</td>
+        <td>${priceText}</td>
+        <td><b>${qtyText}</b></td>
       </tr>`);
   });
 }
@@ -353,7 +364,7 @@ function getTrendMarketData(){
 }
 function updateSignal(){if(!marketDataGlobal){signalStatus.className="signal wait";signalStatus.innerText="⏳ 시장 데이터 확인 중";return}const n=getTrendMarketData(),price=n.price,m120=n.sma120,m200=n.sma200,s=Number(appData.s5tw)||0;if(!price||!m120||!m200){signalStatus.className="signal wait";signalStatus.innerText="시장 데이터 부족";signalDetail.innerHTML="NASDAQ-100 데이터를 확인하지 못했습니다.";return}const trend=price>m120&&price>m200;if(!trend){signalStatus.className="signal risk";signalStatus.innerText="🛡️ RISK-OFF";signalDetail.innerHTML="NASDAQ-100이 120일선 또는 200일선 아래입니다.";return}if(s>0&&s<=30){signalStatus.className="signal wait";signalStatus.innerText="🎯 S5TW 과매도 진입";signalDetail.innerHTML=`NASDAQ-100 상승추세 유지 + S5TW ${s}% — 30 위 재돌파를 기다립니다.`;return}if(appData.s5twBottomDetected&&s>30){signalStatus.className="signal buySignal";signalStatus.innerText="🚀 공격 매수 조건 충족";signalDetail.innerHTML=`NASDAQ-100 추세 유지 + S5TW 30 이하 진입 후 ${s}%로 재돌파했습니다.`;return}signalStatus.className="signal wait";signalStatus.innerText="👀 관망";signalDetail.innerHTML="NASDAQ-100 상승추세 유지. 아직 S5TW 30 이하 → 재돌파 사이클이 없습니다."}
 function resetSignalCycle(){if(confirm("S5TW 30 이하 진입 기록을 초기화할까요?")){appData.s5twBottomDetected=false;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));updateSignal()}}
-async function loadMarketData(){try{const r=await fetch("data.json?t="+Date.now());if(!r.ok)throw 0;marketDataGlobal=await r.json();const n=getTrendMarketData(),p=n.price,a=n.sma120,b=n.sma200,fx=Number(marketDataGlobal.fx_rate)||0;marketData.innerHTML=`<b>최종 업데이트:</b> ${marketDataGlobal.updated_at||"-"}<br><b>NASDAQ-100 (^NDX):</b> ${p?p.toLocaleString():"-"}<br><b>120일선:</b> ${a?a.toLocaleString():"-"}<br><b>200일선:</b> ${b?b.toLocaleString():"-"}<br><b>USD/KRW:</b> ${fx?fx.toLocaleString()+"원":"-"}<br><b>추세:</b> ${p&&a&&b?(p>a&&p>b?"✅ 상승":"⚠️ 이탈"):"⏳ 데이터 부족"}`;updateSignal()}catch{marketData.innerHTML="⚠️ data.json을 불러오지 못했습니다."}}
+async function loadMarketData(){try{const r=await fetch("data.json?t="+Date.now());if(!r.ok)throw 0;marketDataGlobal=await r.json();const n=getTrendMarketData(),p=n.price,a=n.sma120,b=n.sma200,fx=Number(marketDataGlobal.fx_rate)||0;const prices=marketDataGlobal.prices||{};const priceLine=["qld","qqq","voo","brkb","visa"].map(id=>{const x=prices[id];return x?.price?`${id==="brkb"?"BRK.B":id.toUpperCase()} $${Number(x.price).toLocaleString(undefined,{maximumFractionDigits:2})}`:null}).filter(Boolean).join(" · ");marketData.innerHTML=`<b>최종 업데이트:</b> ${marketDataGlobal.updated_at||"-"}<br><b>NASDAQ-100 (^NDX):</b> ${p?p.toLocaleString():"-"}<br><b>120일선:</b> ${a?a.toLocaleString():"-"}<br><b>200일선:</b> ${b?b.toLocaleString():"-"}<br><b>USD/KRW:</b> ${fx?fx.toLocaleString()+"원":"-"}<br><b>주가:</b> ${priceLine||"-"}<br><b>추세:</b> ${p&&a&&b?(p>a&&p>b?"✅ 상승":"⚠️ 이탈"):"⏳ 데이터 부족"}`;updateSignal();renderRebalance()}catch{marketData.innerHTML="⚠️ data.json을 불러오지 못했습니다."}}
 
 function addTrade(){const date=tradeDate.value,ticker=tradeTicker.value,type=tradeType.value,amount=num("tradeAmount"),memo=tradeMemo.value.trim();if(!date||!amount)return alert("날짜와 거래금액을 입력하세요.");const trend=getTrendMarketData();appData.trades.unshift({id:Date.now(),date,ticker,type,amount,memo,s5tw:appData.s5tw||null,ndx:trend.price||null});localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));tradeAmount.value="";tradeMemo.value="";renderTrades()}
 function deleteTrade(id){appData.trades=appData.trades.filter(x=>x.id!==id);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderTrades()}
