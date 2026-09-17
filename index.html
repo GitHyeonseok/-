@@ -54,6 +54,7 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 <h3>자산 구성</h3>
 <div class="grid2">
 <div><label>원화 현금 / 통장</label><input id="cashKRW" type="number"/></div>
+<div><label>증권계좌 예수금</label><input id="brokerCash" type="number"/></div>
 <div><label>비상금</label><input id="emergency" type="number"/></div>
 <div><label>예정 지출 보관금</label><input id="plannedExpense" type="number"/></div>
 <div><label>외화RP</label><input id="foreignRP" type="number"/></div>
@@ -99,6 +100,7 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 
 <div class="grid3">
 <div><label>외화RP 투입액</label><input id="rebalanceRpDeploy" min="0" oninput="updateRebalanceInputs()" type="number" placeholder="0"/></div>
+<div><label>예수금 투입액</label><input id="rebalanceBrokerDeploy" min="0" oninput="updateRebalanceInputs()" type="number" placeholder="0"/></div>
 <div><label>원화현금 투입액</label><input id="rebalanceCashDeploy" min="0" oninput="updateRebalanceInputs()" type="number" placeholder="0"/></div>
 <div><label>신규자금 / 기타</label><input id="rebalanceNewDeploy" min="0" oninput="updateRebalanceInputs()" type="number" placeholder="0"/></div>
 </div>
@@ -106,11 +108,12 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 <div class="summary-grid" style="margin-top:10px">
 <div class="summary"><div class="title">이번 추가 투자금 합계</div><div class="value" id="rebalanceDeployTotal">0원</div></div>
 <div class="summary"><div class="title">투입 후 외화RP</div><div class="value" id="rebalanceRpRemainingText">0원</div></div>
+<div class="summary"><div class="title">투입 후 예수금</div><div class="value" id="rebalanceBrokerRemainingText">0원</div></div>
 <div class="summary"><div class="title">투입 후 원화현금</div><div class="value" id="rebalanceCashRemainingText">0원</div></div>
 <div class="summary"><div class="title">투자 후 목표 포트폴리오</div><div class="value" id="rebalanceAfterTotal">0원</div></div>
 </div>
 
-<p class="note">외화RP와 원화현금을 동시에 투입할 수 있습니다. 추가매수 모드에서는 기존 종목을 매도하지 않고, 목표비중과의 제곱오차가 최소가 되도록 새 투자금을 배분합니다.</p>
+<p class="note">외화RP·예수금·원화현금을 동시에 투입할 수 있습니다. 추가매수 모드에서는 기존 종목을 매도하지 않고, 목표비중과의 제곱오차가 최소가 되도록 새 투자금을 배분합니다.</p>
 <div class="status" id="rebalanceSummary"></div>
 <div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>투자 후</th><th>조정</th><th>현재가</th><th>수량</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
 <p class="note">기타 투자자산은 목표 포트폴리오 6종목의 비중 계산에서 제외합니다. 전체 리밸런싱 모드에서만 기존 종목 매도를 계산합니다.</p>
@@ -162,10 +165,12 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 </div><div class="card">
 <h2>💾 12. 백업 / 복원</h2>
 <button onclick="exportBackup()">JSON 백업파일 저장</button>
+<button class="green" onclick="restoreAutoBackup()">최근 자동백업 복원</button>
+<div class="status" id="autoBackupStatus" style="margin-top:10px">자동백업 확인 중...</div>
 <button class="gray" onclick="document.getElementById('backupFile').click()">백업파일 불러오기</button>
 <input accept=".json" class="hidden" id="backupFile" onchange="importBackup(event)" type="file"/>
 <button class="red" onclick="resetEverything()">모든 개인 데이터 초기화</button>
-<p class="note">개인 데이터는 이 브라우저의 localStorage에 저장됩니다. 휴대폰 교체 전에는 백업을 권장합니다.</p>
+<p class="note">개인 데이터는 이 브라우저의 localStorage에 저장됩니다. 저장 직전 상태를 최근 자동백업으로 보관합니다. 브라우저 데이터 삭제·휴대폰 교체에는 JSON 백업파일이 필요합니다.</p>
 </div></div>
 <script>
 const portfolio=[
@@ -173,10 +178,11 @@ const portfolio=[
 {id:"brkb",name:"버크셔 B",weight:15},{id:"visa",name:"Visa",weight:5},{id:"gold",name:"KRX 금",weight:10}
 ];
 const STORAGE_KEY="wealthManagerDataV3";
+const AUTO_BACKUP_KEY="wealthManagerAutoBackupV3";
 let marketDataGlobal=null, recognizedAssets=[];
 
 function defaultData(){return{
-cashKRW:0,emergency:0,plannedExpense:0,foreignRP:0,otherAsset:0,otherInvestment:0,debt:0,rebalanceRpDeploy:0,rebalanceCashDeploy:0,rebalanceNewDeploy:0,rebalanceMode:"buyOnly",rebalanceSource:"foreignRP",
+cashKRW:0,brokerCash:0,emergency:0,plannedExpense:0,foreignRP:0,otherAsset:0,otherInvestment:0,debt:0,rebalanceRpDeploy:0,rebalanceBrokerDeploy:0,rebalanceCashDeploy:0,rebalanceNewDeploy:0,rebalanceMode:"buyOnly",rebalanceSource:"foreignRP",
 goalAmount:100000000,goalDate:"",monthlyContribution:0,
 holdings:{qld:0,qqq:0,voo:0,brkb:0,visa:0,gold:0},
 investmentPrincipal:0,incomeReceived:0,monthlyIncome:0,fixedExpense:0,livingExpense:0,otherExpense:0,
@@ -206,16 +212,44 @@ const num=id=>Number(document.getElementById(id)?.value)||0;
 
 function createHoldingInputs(){const t=document.getElementById("holdingInputs");t.innerHTML="";portfolio.forEach(p=>{t.insertAdjacentHTML("beforeend",`<tr><td><b>${p.name}</b></td><td style="text-align:center">${p.weight}%</td><td><input type="number" id="holding_${p.id}" value="${appData.holdings[p.id]||0}" onchange="saveAll()"></td></tr>`);})}
 function populateInputs(){
-["cashKRW","emergency","plannedExpense","foreignRP","otherAsset","otherInvestment","debt","rebalanceRpDeploy","rebalanceCashDeploy","rebalanceNewDeploy","goalAmount","goalDate","monthlyContribution","investmentPrincipal","incomeReceived","monthlyIncome","fixedExpense","livingExpense","otherExpense"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=appData[id]??""});
+["cashKRW","brokerCash","emergency","plannedExpense","foreignRP","otherAsset","otherInvestment","debt","rebalanceRpDeploy","rebalanceBrokerDeploy","rebalanceCashDeploy","rebalanceNewDeploy","goalAmount","goalDate","monthlyContribution","investmentPrincipal","incomeReceived","monthlyIncome","fixedExpense","livingExpense","otherExpense"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=appData[id]??""});
 document.getElementById("s5twInput").value=appData.s5tw||"";
 document.getElementById("tradeDate").value=new Date().toISOString().slice(0,10);
 document.getElementById("workerUrl").value=appData.workerUrl||"";
 document.getElementById("rebalanceMode").value=appData.rebalanceMode||"buyOnly";
 }
 function getInvestmentValue(){return portfolio.reduce((s,p)=>s+(Number(appData.holdings[p.id])||0),0)+Number(appData.otherInvestment||0)}
-function getNetWorth(){return Number(appData.cashKRW||0)+Number(appData.emergency||0)+Number(appData.plannedExpense||0)+Number(appData.foreignRP||0)+Number(appData.otherAsset||0)+getInvestmentValue()-Number(appData.debt||0)}
-function saveAll(){
-["cashKRW","emergency","plannedExpense","foreignRP","otherAsset","otherInvestment","debt","rebalanceRpDeploy","rebalanceCashDeploy","rebalanceNewDeploy","goalAmount","monthlyContribution","investmentPrincipal","incomeReceived","monthlyIncome","fixedExpense","livingExpense","otherExpense"].forEach(id=>appData[id]=num(id));
+function getNetWorth(){return Number(appData.cashKRW||0)+Number(appData.brokerCash||0)+Number(appData.emergency||0)+Number(appData.plannedExpense||0)+Number(appData.foreignRP||0)+Number(appData.otherAsset||0)+getInvestmentValue()-Number(appData.debt||0)}
+function makeAutoBackup(reason="저장 전"){
+  try{
+    localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify({version:3,savedAt:new Date().toISOString(),reason,data:JSON.parse(JSON.stringify(appData))}));
+    renderAutoBackupStatus();
+  }catch(e){console.warn("자동백업 실패",e)}
+}
+function renderAutoBackupStatus(){
+  const el=document.getElementById("autoBackupStatus");if(!el)return;
+  try{
+    const p=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"null");
+    if(!p){el.innerHTML="<b>최근 자동백업:</b> 없음";return}
+    const d=new Date(p.savedAt);
+    el.innerHTML=`<b>최근 자동백업:</b> ${isNaN(d)?p.savedAt:d.toLocaleString("ko-KR")}<br><span class="note">현재 데이터가 저장되기 직전 상태</span>`;
+  }catch{el.innerHTML="<b>최근 자동백업:</b> 읽기 오류"}
+}
+function restoreAutoBackup(){
+  try{
+    const p=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"null");
+    if(!p?.data)return alert("복원할 자동백업이 없습니다.");
+    if(!confirm("현재 데이터를 최근 자동백업 상태로 되돌릴까요?"))return;
+    const current=JSON.parse(JSON.stringify(appData));
+    appData={...defaultData(),...p.data,holdings:{...defaultData().holdings,...(p.data.holdings||{})}};
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+    localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify({version:3,savedAt:new Date().toISOString(),reason:"복원 직전",data:current}));
+    location.reload();
+  }catch{alert("자동백업을 복원하지 못했습니다.")}
+}
+
+function saveAll(){makeAutoBackup("저장 전");
+["cashKRW","brokerCash","emergency","plannedExpense","foreignRP","otherAsset","otherInvestment","debt","rebalanceRpDeploy","rebalanceBrokerDeploy","rebalanceCashDeploy","rebalanceNewDeploy","goalAmount","monthlyContribution","investmentPrincipal","incomeReceived","monthlyIncome","fixedExpense","livingExpense","otherExpense"].forEach(id=>appData[id]=num(id));
 appData.goalDate=document.getElementById("goalDate").value;
 appData.workerUrl=document.getElementById("workerUrl").value.trim();
 portfolio.forEach(p=>appData.holdings[p.id]=num("holding_"+p.id));
@@ -230,6 +264,7 @@ function updateRebalanceDeploy(){ updateRebalanceInputs(); }
 
 function updateRebalanceInputs(){
   appData.rebalanceRpDeploy=Math.max(0,Number(document.getElementById("rebalanceRpDeploy")?.value)||0);
+  appData.rebalanceBrokerDeploy=Math.max(0,Number(document.getElementById("rebalanceBrokerDeploy")?.value)||0);
   appData.rebalanceCashDeploy=Math.max(0,Number(document.getElementById("rebalanceCashDeploy")?.value)||0);
   appData.rebalanceNewDeploy=Math.max(0,Number(document.getElementById("rebalanceNewDeploy")?.value)||0);
   appData.rebalanceMode=document.getElementById("rebalanceMode")?.value||"buyOnly";
@@ -311,21 +346,25 @@ function renderRebalance(){
   const core=portfolio.reduce((x,p)=>x+(Number(appData.holdings[p.id])||0),0);
   const other=Number(appData.otherInvestment)||0;
   const rpBalance=Math.max(0,Number(appData.foreignRP)||0);
+  const brokerBalance=Math.max(0,Number(appData.brokerCash)||0);
   const cashBalance=Math.max(0,Number(appData.cashKRW)||0);
   const rpRequested=Math.max(0,Number(appData.rebalanceRpDeploy)||0);
+  const brokerRequested=Math.max(0,Number(appData.rebalanceBrokerDeploy)||0);
   const cashRequested=Math.max(0,Number(appData.rebalanceCashDeploy)||0);
   const newMoney=Math.max(0,Number(appData.rebalanceNewDeploy)||0);
-  const rpDeploy=Math.min(rpRequested,rpBalance), cashDeploy=Math.min(cashRequested,cashBalance);
-  const deploy=rpDeploy+cashDeploy+newMoney, rpRemaining=rpBalance-rpDeploy, cashRemaining=cashBalance-cashDeploy;
+  const rpDeploy=Math.min(rpRequested,rpBalance), brokerDeploy=Math.min(brokerRequested,brokerBalance), cashDeploy=Math.min(cashRequested,cashBalance);
+  const deploy=rpDeploy+brokerDeploy+cashDeploy+newMoney, rpRemaining=rpBalance-rpDeploy, brokerRemaining=brokerBalance-brokerDeploy, cashRemaining=cashBalance-cashDeploy;
   const total=core+deploy, mode=appData.rebalanceMode||"buyOnly";
 
   document.getElementById("rebalanceDeployTotal").innerText=money(deploy);
   document.getElementById("rebalanceRpRemainingText").innerText=money(rpRemaining);
+  document.getElementById("rebalanceBrokerRemainingText").innerText=money(brokerRemaining);
   document.getElementById("rebalanceCashRemainingText").innerText=money(cashRemaining);
   document.getElementById("rebalanceAfterTotal").innerText=money(total);
 
   let warnings=[];
   if(rpRequested>rpBalance)warnings.push(`외화RP는 보유액 ${money(rpBalance)}까지만 반영`);
+  if(brokerRequested>brokerBalance)warnings.push(`예수금은 보유액 ${money(brokerBalance)}까지만 반영`);
   if(cashRequested>cashBalance)warnings.push(`원화현금은 보유액 ${money(cashBalance)}까지만 반영`);
 
   const current=portfolio.map(p=>Number(appData.holdings[p.id])||0);
@@ -339,7 +378,7 @@ function renderRebalance(){
   rebalanceSummary.innerHTML=
     `<b>방식:</b> ${mode==="buyOnly"?"추가매수 — 정수주 최적화":"전체 리밸런싱 — 매도 허용"}<br>`+
     `<b>현재 목표 포트폴리오:</b> ${money(core)}<br>`+
-    `<b>투입:</b> 외화RP ${money(rpDeploy)} + 원화현금 ${money(cashDeploy)} + 신규자금 ${money(newMoney)}<br>`+
+    `<b>투입:</b> 외화RP ${money(rpDeploy)} + 예수금 ${money(brokerDeploy)} + 원화현금 ${money(cashDeploy)} + 신규자금 ${money(newMoney)}<br>`+
     `<b>추가 투자금 합계:</b> ${money(deploy)}<br>`+
     (mode==="buyOnly"?`<b>예상 주문금액:</b> ${money(actualSpent)}<br><b>정수주 주문 후 잔액:</b> ${money(orderRemaining)}<br>`:"")+
     `<b>투자 후 포트폴리오:</b> ${money(mode==="buyOnly"?actualTotal:total)}<br>`+
@@ -428,7 +467,7 @@ async function analyzeScreenshot(){
   }catch(e){alert("분석 실패: "+e.message)}
   finally{aiLoading.classList.add("hidden")}
 }
-const assetNames={qld:"QLD",qqq:"QQQ",voo:"VOO",brkb:"버크셔 B",visa:"Visa",gold:"KRX 금",cashKRW:"원화 현금",foreignRP:"외화RP",emergency:"비상금",plannedExpense:"예정지출",otherAsset:"기타 자산",otherInvestment:"기타 투자자산",unknown:"분류 불가"};
+const assetNames={qld:"QLD",qqq:"QQQ",voo:"VOO",brkb:"버크셔 B",visa:"Visa",gold:"KRX 금",cashKRW:"원화 현금",brokerCash:"증권계좌 예수금",foreignRP:"외화RP",emergency:"비상금",plannedExpense:"예정지출",otherAsset:"기타 자산",otherInvestment:"기타 투자자산",unknown:"분류 불가"};
 function renderRecognized(data){
   document.getElementById("recognizedAssets").innerHTML="";
   recognizedAssets=(data.assets||[]).map(a=>
@@ -458,7 +497,7 @@ function applyRecognizedAssets(){
     if(id==="unknown"||amount<0)continue;
     if(["qld","qqq","voo","brkb","visa","gold"].includes(id)){
       appData.holdings[id]=mode==="add"?(Number(appData.holdings[id])||0)+amount:amount;
-    }else if(["cashKRW","foreignRP","emergency","plannedExpense","otherAsset","otherInvestment"].includes(id)){
+    }else if(["cashKRW","brokerCash","foreignRP","emergency","plannedExpense","otherAsset","otherInvestment"].includes(id)){
       appData[id]=mode==="add"?(Number(appData[id])||0)+amount:amount;
     }
   }
@@ -468,7 +507,7 @@ function applyRecognizedAssets(){
   window.scrollTo({top:document.querySelectorAll(".card")[0].offsetTop-10,behavior:"smooth"});
 }
 
-createHoldingInputs();populateInputs();renderAll();loadMarketData();
+createHoldingInputs();populateInputs();renderAll();renderAutoBackupStatus();loadMarketData();
 </script>
 </body>
 </html>
