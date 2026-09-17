@@ -91,19 +91,30 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 </div><div class="card">
 <h2>⚖️ 6. 포트폴리오 리밸런싱</h2>
 <div class="grid2">
+<div><label>리밸런싱 방식</label><select id="rebalanceMode" onchange="updateRebalanceDeploy()">
+<option value="buyOnly">추가매수 모드 (매도 안 함)</option>
+<option value="full">전체 리밸런싱 (매도 허용)</option>
+</select></div>
+<div><label>추가 투자금 출처</label><select id="rebalanceSource" onchange="updateRebalanceDeploy()">
+<option value="foreignRP">외화RP</option>
+<option value="cashKRW">원화 현금 / 통장</option>
+<option value="newMoney">신규 입금 / 직접입력</option>
+</select></div>
+</div>
+<div class="grid2">
 <div>
-<label>이번 리밸런싱에 투입할 외화RP 금액</label>
+<label>이번에 추가 투입할 투자금</label>
 <input id="rebalanceRpDeploy" min="0" oninput="updateRebalanceDeploy()" placeholder="기본값 0원" type="number"/>
 </div>
 <div>
-<label>투입 후 남는 외화RP</label>
+<label>투입 후 남는 선택 자금</label>
 <input id="rebalanceRpRemaining" disabled="" type="text" value="0원"/>
 </div>
 </div>
-<p class="note">외화RP 전체를 자동으로 투자금으로 보지 않습니다. 실제로 이번에 투자할 금액만 입력하세요.</p>
+<p class="note">기본은 추가매수 모드입니다. 기존 자산은 팔지 않고 새 투자금만 부족한 종목에 배분합니다.</p>
 <div class="status" id="rebalanceSummary"></div>
-<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>목표금액</th><th>조정</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
-<p class="note">목표 포트폴리오 자산 + 직접 입력한 외화RP 투입금액만 리밸런싱 기준으로 사용합니다. 기타 투자자산과 투입하지 않은 외화RP는 목표 비중 계산에서 제외합니다.</p>
+<div class="scroll"><table><thead><tr><th>종목</th><th>목표</th><th>현재</th><th>투자 후 비중</th><th>조정</th></tr></thead><tbody id="rebalanceTable"></tbody></table></div>
+<p class="note">기타 투자자산은 목표 포트폴리오 비중 계산에서 제외합니다. 전체 리밸런싱 모드에서만 기존 종목 매도를 계산합니다.</p>
 </div><div class="card">
 <h2>🎯 7. 자산 목표</h2>
 <div class="grid3">
@@ -154,7 +165,6 @@ table{width:100%;border-collapse:collapse;font-size:.77rem;margin-top:8px}th,td{
 <button onclick="exportBackup()">JSON 백업파일 저장</button>
 <button class="gray" onclick="document.getElementById('backupFile').click()">백업파일 불러오기</button>
 <input accept=".json" class="hidden" id="backupFile" onchange="importBackup(event)" type="file"/>
-<button class="gray" onclick="showAutoBackups()">자동 백업 기록 보기 / 복구</button><div class="hidden" id="autoBackupPanel" style="margin-top:10px"></div>
 <button class="red" onclick="resetEverything()">모든 개인 데이터 초기화</button>
 <p class="note">개인 데이터는 이 브라우저의 localStorage에 저장됩니다. 휴대폰 교체 전에는 백업을 권장합니다.</p>
 </div></div>
@@ -163,21 +173,17 @@ const portfolio=[
 {id:"qld",name:"QLD",weight:30},{id:"qqq",name:"QQQ",weight:20},{id:"voo",name:"VOO",weight:20},
 {id:"brkb",name:"버크셔 B",weight:15},{id:"visa",name:"Visa",weight:5},{id:"gold",name:"KRX 금",weight:10}
 ];
-const STORAGE_KEY="wealthManagerDataV3"; // 영구 고정 저장키
-const LEGACY_STORAGE_KEYS=["wealthManagerDataV2","wealthManagerDataV1","wealthManagerData"];
-const AUTO_BACKUP_KEY="wealthManagerAutoBackups";
-const MAX_AUTO_BACKUPS=12;
+const STORAGE_KEY="wealthManagerDataV3";
 let marketDataGlobal=null, recognizedAssets=[];
 
 function defaultData(){return{
-cashKRW:0,emergency:0,plannedExpense:0,foreignRP:0,otherAsset:0,otherInvestment:0,debt:0,rebalanceRpDeploy:0,
+cashKRW:0,emergency:0,plannedExpense:0,foreignRP:0,otherAsset:0,otherInvestment:0,debt:0,rebalanceRpDeploy:0,rebalanceMode:"buyOnly",rebalanceSource:"foreignRP",
 goalAmount:100000000,goalDate:"",monthlyContribution:0,
 holdings:{qld:0,qqq:0,voo:0,brkb:0,visa:0,gold:0},
 investmentPrincipal:0,incomeReceived:0,monthlyIncome:0,fixedExpense:0,livingExpense:0,otherExpense:0,
 s5tw:0,s5twBottomDetected:false,trades:[],snapshots:[],workerUrl:""
 }}
-function normalizeData(x){const d=defaultData(),src=(x&&x.data)?x.data:(x||{});return{...d,...src,holdings:{...d.holdings,...(src.holdings||{})}}}
-function loadData(){try{const cur=localStorage.getItem(STORAGE_KEY);if(cur)return normalizeData(JSON.parse(cur));for(const key of LEGACY_STORAGE_KEYS){const raw=localStorage.getItem(key);if(raw){const d=normalizeData(JSON.parse(raw));localStorage.setItem(STORAGE_KEY,JSON.stringify(d));localStorage.setItem("wealthManagerMigratedFrom",key);return d}}}catch(e){console.error(e)}return defaultData()}
+function loadData(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");if(!x)return defaultData();return{...defaultData(),...x,holdings:{...defaultData().holdings,...(x.holdings||{})}}}catch{return defaultData()}}
 let appData=loadData();
 
 // 이전 버전에서 AI 기타종목이 "기타 자산"에 저장된 뒤
@@ -198,12 +204,6 @@ let appData=loadData();
 })();
 const money=v=>Math.round(Number(v)||0).toLocaleString()+"원";
 const num=id=>Number(document.getElementById(id)?.value)||0;
-function getAutoBackups(){try{return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"[]")}catch{return[]}}
-function createAutoBackup(reason="자동 저장"){const list=getAutoBackups(),payload=JSON.stringify(appData);if(list[0]?.payload===payload)return;list.unshift({at:new Date().toISOString(),reason,payload});localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(list.slice(0,MAX_AUTO_BACKUPS)))}
-function persist(reason="자동 저장"){createAutoBackup(reason);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData))}
-function showAutoBackups(){const panel=document.getElementById("autoBackupPanel"),list=getAutoBackups();panel.classList.remove("hidden");panel.innerHTML=list.length?'<div class="status"><b>최근 자동 백업</b><br>'+list.map((b,i)=>`${new Date(b.at).toLocaleString()} · ${escapeHtml(b.reason)} <button class="smallbtn" onclick="restoreAutoBackup(${i})">복구</button>`).join("<br>")+'</div>':'<div class="status">자동 백업 기록이 없습니다.</div>'}
-function restoreAutoBackup(i){const b=getAutoBackups()[i];if(!b||!confirm("이 시점으로 복구할까요? 현재 상태도 먼저 백업됩니다."))return;createAutoBackup("복구 직전");appData=normalizeData(JSON.parse(b.payload));localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));location.reload()}
-
 
 function createHoldingInputs(){const t=document.getElementById("holdingInputs");t.innerHTML="";portfolio.forEach(p=>{t.insertAdjacentHTML("beforeend",`<tr><td><b>${p.name}</b></td><td style="text-align:center">${p.weight}%</td><td><input type="number" id="holding_${p.id}" value="${appData.holdings[p.id]||0}" onchange="saveAll()"></td></tr>`);})}
 function populateInputs(){
@@ -211,6 +211,8 @@ function populateInputs(){
 document.getElementById("s5twInput").value=appData.s5tw||"";
 document.getElementById("tradeDate").value=new Date().toISOString().slice(0,10);
 document.getElementById("workerUrl").value=appData.workerUrl||"";
+document.getElementById("rebalanceMode").value=appData.rebalanceMode||"buyOnly";
+document.getElementById("rebalanceSource").value=appData.rebalanceSource||"foreignRP";
 }
 function getInvestmentValue(){return portfolio.reduce((s,p)=>s+(Number(appData.holdings[p.id])||0),0)+Number(appData.otherInvestment||0)}
 function getNetWorth(){return Number(appData.cashKRW||0)+Number(appData.emergency||0)+Number(appData.plannedExpense||0)+Number(appData.foreignRP||0)+Number(appData.otherAsset||0)+getInvestmentValue()-Number(appData.debt||0)}
@@ -219,7 +221,7 @@ function saveAll(){
 appData.goalDate=document.getElementById("goalDate").value;
 appData.workerUrl=document.getElementById("workerUrl").value.trim();
 portfolio.forEach(p=>appData.holdings[p.id]=num("holding_"+p.id));
-persist("입력값 저장");renderAll();
+localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderAll();
 }
 function renderAll(){renderDashboard();renderGoal();renderPerformance();renderCashflow();renderRebalance();renderTrades();renderSnapshots();updateSignal()}
 function renderDashboard(){const i=getInvestmentValue(),n=getNetWorth();document.getElementById("netWorthDisplay").innerText=money(n);document.getElementById("investmentDisplay").innerText=money(i);document.getElementById("safeMoneyDisplay").innerText=money(Number(appData.emergency||0)+Number(appData.plannedExpense||0));document.getElementById("rpDisplay").innerText=money(appData.foreignRP)}
@@ -227,65 +229,73 @@ function renderGoal(){const n=getNetWorth(),g=Number(appData.goalAmount)||0,p=g>
 function renderPerformance(){const v=getInvestmentValue(),p=Number(appData.investmentPrincipal)||0,inc=Number(appData.incomeReceived)||0,profit=v-p,total=profit+inc,rate=p>0?total/p*100:0;performanceValue.innerText=money(v);profitDisplay.innerText=money(profit);returnDisplay.innerText=rate.toFixed(2)+"%";totalProfitDisplay.innerText=money(total);profitDisplay.className="value "+(profit>=0?"positive":"negative");returnDisplay.className="value "+(rate>=0?"positive":"negative");totalProfitDisplay.className="value "+(total>=0?"positive":"negative")}
 function renderCashflow(){const i=Number(appData.monthlyIncome)||0,e=Number(appData.fixedExpense||0)+Number(appData.livingExpense||0)+Number(appData.otherExpense||0),s=i-e;cashflowResult.innerHTML=`<b>월 수입:</b> ${money(i)}<br><b>월 지출:</b> ${money(e)}<br><b>월 잉여자금:</b> ${money(s)}<br><b>저축 가능 비율:</b> ${(i>0?s/i*100:0).toFixed(1)}%`}
 function updateRebalanceDeploy(){
-  const input=document.getElementById("rebalanceRpDeploy");
-  appData.rebalanceRpDeploy=Math.max(0,Number(input?.value)||0);
-  persist("리밸런싱 설정");
+  appData.rebalanceRpDeploy=Math.max(0,Number(document.getElementById("rebalanceRpDeploy")?.value)||0);
+  appData.rebalanceMode=document.getElementById("rebalanceMode")?.value||"buyOnly";
+  appData.rebalanceSource=document.getElementById("rebalanceSource")?.value||"foreignRP";
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
   renderRebalance();
 }
+function rebalanceSourceInfo(){
+  const x=appData.rebalanceSource||"foreignRP";
+  if(x==="foreignRP")return {name:"외화RP",balance:Math.max(0,Number(appData.foreignRP)||0),limited:true};
+  if(x==="cashKRW")return {name:"원화 현금",balance:Math.max(0,Number(appData.cashKRW)||0),limited:true};
+  return {name:"신규 입금 / 직접입력",balance:0,limited:false};
+}
+function buyOnlyPlan(current,weights,cash){
+  let buys=current.map(()=>0);
+  if(cash<=0)return buys;
+  let left=cash, active=current.map((_,i)=>i), guard=0;
+  // 반복적으로 "투자 후 목표금액 - 현재금액" 부족분에 비례 배분.
+  while(left>0.5 && guard++<10){
+    const finalTotal=current.reduce((a,b)=>a+b,0)+cash;
+    const deficit=active.map(i=>Math.max(0,finalTotal*weights[i]-current[i]-buys[i]));
+    const sum=deficit.reduce((a,b)=>a+b,0);
+    if(sum<=0.5){weights.forEach((w,i)=>buys[i]+=left*w);break}
+    const use=Math.min(left,sum);
+    active.forEach((i,k)=>buys[i]+=use*deficit[k]/sum);
+    left-=use;
+    active=active.filter((i,k)=>deficit[k]>0.5);
+    if(!active.length&&left>0){weights.forEach((w,i)=>buys[i]+=left*w);break}
+  }
+  return buys;
+}
 function renderRebalance(){
-  const core=portfolio.reduce((s,p)=>s+(Number(appData.holdings[p.id])||0),0);
+  const core=portfolio.reduce((x,p)=>x+(Number(appData.holdings[p.id])||0),0);
   const other=Number(appData.otherInvestment)||0;
-  const rp=Math.max(0,Number(appData.foreignRP)||0);
+  const src=rebalanceSourceInfo();
   const requested=Math.max(0,Number(appData.rebalanceRpDeploy)||0);
-  const deploy=Math.min(requested,rp);
-  const remaining=Math.max(rp-deploy,0);
-  const total=core+deploy;
-
-  const remainingEl=document.getElementById("rebalanceRpRemaining");
-  if(remainingEl)remainingEl.value=money(remaining);
-
-  const overWarning=requested>rp
-    ? `<br><span class="negative"><b>⚠️ 입력한 RP 투입금액이 보유 외화RP보다 ${money(requested-rp)} 많아, 계산에는 최대 ${money(rp)}만 반영했습니다.</b></span>`
-    : "";
-
+  const deploy=src.limited?Math.min(requested,src.balance):requested;
+  const remaining=src.limited?Math.max(src.balance-deploy,0):null;
+  const total=core+deploy, mode=appData.rebalanceMode||"buyOnly";
+  const rem=document.getElementById("rebalanceRpRemaining");
+  if(rem)rem.value=remaining===null?"해당 없음":money(remaining);
+  const warn=src.limited&&requested>src.balance?`<br><span class="negative"><b>⚠️ ${src.name} 잔액을 초과해 최대 ${money(src.balance)}만 계산했습니다.</b></span>`:"";
   rebalanceSummary.innerHTML=
+    `<b>방식:</b> ${mode==="buyOnly"?"추가매수 (기존 자산 매도 없음)":"전체 리밸런싱 (매도 허용)"}<br>`+
     `<b>현재 목표 포트폴리오 자산:</b> ${money(core)}<br>`+
-    `<b>기타 투자자산:</b> ${money(other)}<br>`+
-    `<b>보유 외화RP:</b> ${money(rp)}<br>`+
-    `<b>이번 RP 투입금액:</b> ${money(deploy)}<br>`+
-    `<b>투입 후 남는 외화RP:</b> ${money(remaining)}<br>`+
-    `<b>리밸런싱 기준금액:</b> ${money(total)}<br>`+
-    `<b>총 투자자산:</b> ${money(core+other)}`+
-    overWarning;
+    `<b>기타 투자자산:</b> ${money(other)} (비중 계산 제외)<br>`+
+    `<b>추가 투자금 출처:</b> ${src.name}<br>`+
+    `<b>이번 추가 투자금:</b> ${money(deploy)}<br>`+
+    (remaining!==null?`<b>투입 후 남는 ${src.name}:</b> ${money(remaining)}<br>`:"")+
+    `<b>투자 후 포트폴리오 예상액:</b> ${money(total)}`+warn;
 
+  const cur=portfolio.map(p=>Number(appData.holdings[p.id])||0);
+  const w=portfolio.map(p=>p.weight/100);
+  const buys=mode==="buyOnly"?buyOnlyPlan(cur,w,deploy):null;
   rebalanceTable.innerHTML="";
-
-  portfolio.forEach(p=>{
-    const c=Number(appData.holdings[p.id])||0;
-    const currentWeight=total>0?c/total*100:0;
-    const target=total*p.weight/100;
-    const diff=target-c;
-
-    rebalanceTable.insertAdjacentHTML(
-      "beforeend",
-      `<tr>
-        <td><b>${p.name}</b></td>
-        <td>${p.weight}%</td>
-        <td>${currentWeight.toFixed(1)}%</td>
-        <td>${money(target)}</td>
-        <td>${
-          diff>1
-            ? `<span class="buy">+${money(diff)} 매수</span>`
-            : diff<-1
-              ? `<span class="sell">${money(diff)} 매도</span>`
-              : "0원"
-        }</td>
-      </tr>`
-    );
+  portfolio.forEach((p,i)=>{
+    const currentWeight=core?cur[i]/core*100:0;
+    let diff,after;
+    if(mode==="buyOnly"){diff=buys[i];after=cur[i]+diff}
+    else{after=total*w[i];diff=after-cur[i]}
+    const afterWeight=total?after/total*100:0;
+    const action=diff>1?`<span class="buy">+${money(diff)} 매수</span>`:
+      diff<-1?`<span class="sell">${money(diff)} 매도</span>`:"0원";
+    rebalanceTable.insertAdjacentHTML("beforeend",`<tr><td><b>${p.name}</b></td><td>${p.weight}%</td><td>${currentWeight.toFixed(1)}%</td><td>${afterWeight.toFixed(1)}%</td><td>${action}</td></tr>`);
   });
 }
 
-function saveS5TW(){const v=num("s5twInput");appData.s5tw=v;if(v>0&&v<=30)appData.s5twBottomDetected=true;persist("S5TW 저장");updateSignal()}
+function saveS5TW(){const v=num("s5twInput");appData.s5tw=v;if(v>0&&v<=30)appData.s5twBottomDetected=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));updateSignal()}
 function getTrendMarketData(){
   // 새 형식(ndx/price) 우선. 첫 자동 업데이트 전에는 기존 data.json 형식도 임시 호환.
   const n=marketDataGlobal?.ndx||marketDataGlobal?.NDX||marketDataGlobal?.qqq||marketDataGlobal?.QQQ||{};
@@ -296,19 +306,19 @@ function getTrendMarketData(){
   };
 }
 function updateSignal(){if(!marketDataGlobal){signalStatus.className="signal wait";signalStatus.innerText="⏳ 시장 데이터 확인 중";return}const n=getTrendMarketData(),price=n.price,m120=n.sma120,m200=n.sma200,s=Number(appData.s5tw)||0;if(!price||!m120||!m200){signalStatus.className="signal wait";signalStatus.innerText="시장 데이터 부족";signalDetail.innerHTML="NASDAQ-100 데이터를 확인하지 못했습니다.";return}const trend=price>m120&&price>m200;if(!trend){signalStatus.className="signal risk";signalStatus.innerText="🛡️ RISK-OFF";signalDetail.innerHTML="NASDAQ-100이 120일선 또는 200일선 아래입니다.";return}if(s>0&&s<=30){signalStatus.className="signal wait";signalStatus.innerText="🎯 S5TW 과매도 진입";signalDetail.innerHTML=`NASDAQ-100 상승추세 유지 + S5TW ${s}% — 30 위 재돌파를 기다립니다.`;return}if(appData.s5twBottomDetected&&s>30){signalStatus.className="signal buySignal";signalStatus.innerText="🚀 공격 매수 조건 충족";signalDetail.innerHTML=`NASDAQ-100 추세 유지 + S5TW 30 이하 진입 후 ${s}%로 재돌파했습니다.`;return}signalStatus.className="signal wait";signalStatus.innerText="👀 관망";signalDetail.innerHTML="NASDAQ-100 상승추세 유지. 아직 S5TW 30 이하 → 재돌파 사이클이 없습니다."}
-function resetSignalCycle(){if(confirm("S5TW 30 이하 진입 기록을 초기화할까요?")){appData.s5twBottomDetected=false;persist("S5TW 저장");updateSignal()}}
+function resetSignalCycle(){if(confirm("S5TW 30 이하 진입 기록을 초기화할까요?")){appData.s5twBottomDetected=false;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));updateSignal()}}
 async function loadMarketData(){try{const r=await fetch("data.json?t="+Date.now());if(!r.ok)throw 0;marketDataGlobal=await r.json();const n=getTrendMarketData(),p=n.price,a=n.sma120,b=n.sma200,fx=Number(marketDataGlobal.fx_rate)||0;marketData.innerHTML=`<b>최종 업데이트:</b> ${marketDataGlobal.updated_at||"-"}<br><b>NASDAQ-100 (^NDX):</b> ${p?p.toLocaleString():"-"}<br><b>120일선:</b> ${a?a.toLocaleString():"-"}<br><b>200일선:</b> ${b?b.toLocaleString():"-"}<br><b>USD/KRW:</b> ${fx?fx.toLocaleString()+"원":"-"}<br><b>추세:</b> ${p&&a&&b?(p>a&&p>b?"✅ 상승":"⚠️ 이탈"):"⏳ 데이터 부족"}`;updateSignal()}catch{marketData.innerHTML="⚠️ data.json을 불러오지 못했습니다."}}
 
-function addTrade(){const date=tradeDate.value,ticker=tradeTicker.value,type=tradeType.value,amount=num("tradeAmount"),memo=tradeMemo.value.trim();if(!date||!amount)return alert("날짜와 거래금액을 입력하세요.");const trend=getTrendMarketData();appData.trades.unshift({id:Date.now(),date,ticker,type,amount,memo,s5tw:appData.s5tw||null,ndx:trend.price||null});persist("매매일지 추가");tradeAmount.value="";tradeMemo.value="";renderTrades()}
-function deleteTrade(id){appData.trades=appData.trades.filter(x=>x.id!==id);persist("매매일지 변경");renderTrades()}
+function addTrade(){const date=tradeDate.value,ticker=tradeTicker.value,type=tradeType.value,amount=num("tradeAmount"),memo=tradeMemo.value.trim();if(!date||!amount)return alert("날짜와 거래금액을 입력하세요.");const trend=getTrendMarketData();appData.trades.unshift({id:Date.now(),date,ticker,type,amount,memo,s5tw:appData.s5tw||null,ndx:trend.price||null});localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));tradeAmount.value="";tradeMemo.value="";renderTrades()}
+function deleteTrade(id){appData.trades=appData.trades.filter(x=>x.id!==id);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderTrades()}
 function renderTrades(){tradeTable.innerHTML=appData.trades.length?"":`<tr><td colspan="6" style="text-align:center;color:#777">기록 없음</td></tr>`;appData.trades.forEach(t=>tradeTable.insertAdjacentHTML("beforeend",`<tr><td>${t.date}</td><td>${t.ticker}</td><td>${t.type}</td><td>${money(t.amount)}</td><td style="text-align:left">${escapeHtml(t.memo||"-")}</td><td><button class="smallbtn delete" onclick="deleteTrade(${t.id})">삭제</button></td></tr>`))}
-function addSnapshot(){saveAll();const date=new Date().toISOString().slice(0,10),value=getNetWorth(),ex=appData.snapshots.find(s=>s.date===date);if(ex)ex.value=value;else appData.snapshots.push({id:Date.now(),date,value});appData.snapshots.sort((a,b)=>a.date.localeCompare(b.date));persist("순자산 기록 변경");renderSnapshots()}
-function deleteSnapshot(id){appData.snapshots=appData.snapshots.filter(x=>x.id!==id);persist("순자산 기록 변경");renderSnapshots()}
+function addSnapshot(){saveAll();const date=new Date().toISOString().slice(0,10),value=getNetWorth(),ex=appData.snapshots.find(s=>s.date===date);if(ex)ex.value=value;else appData.snapshots.push({id:Date.now(),date,value});appData.snapshots.sort((a,b)=>a.date.localeCompare(b.date));localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderSnapshots()}
+function deleteSnapshot(id){appData.snapshots=appData.snapshots.filter(x=>x.id!==id);localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));renderSnapshots()}
 function renderSnapshots(){snapshotTable.innerHTML="";if(!appData.snapshots.length){snapshotSummary.innerHTML="아직 기록이 없습니다.";snapshotTable.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#777">기록 없음</td></tr>`;return}const first=appData.snapshots[0],last=appData.snapshots.at(-1);snapshotSummary.innerHTML=`<b>첫 기록:</b> ${money(first.value)}<br><b>최근:</b> ${money(last.value)}<br><b>누적 변화:</b> ${money(last.value-first.value)}`;[...appData.snapshots].reverse().forEach(s=>{const i=appData.snapshots.findIndex(x=>x.id===s.id),d=i>0?s.value-appData.snapshots[i-1].value:0;snapshotTable.insertAdjacentHTML("beforeend",`<tr><td>${s.date}</td><td>${money(s.value)}</td><td class="${d>=0?"positive":"negative"}">${d>=0?"+":""}${money(d)}</td><td><button class="smallbtn delete" onclick="deleteSnapshot(${s.id})">삭제</button></td></tr>`)})}
 
 function exportBackup(){saveAll();const blob=new Blob([JSON.stringify({version:3,exportedAt:new Date().toISOString(),data:appData},null,2)],{type:"application/json"}),u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download="asset-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(u)}
 function importBackup(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=x=>{try{const p=JSON.parse(x.target.result),d=p.data||p;if(!confirm("현재 데이터를 백업파일로 교체할까요?"))return;appData={...defaultData(),...d,holdings:{...defaultData().holdings,...(d.holdings||{})}};localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));location.reload()}catch{alert("올바른 백업파일이 아닙니다.")}};r.readAsText(f)}
-function resetEverything(){if(confirm("현재 데이터를 초기화할까요? 자동 백업 기록은 남겨둡니다.")&&confirm("마지막 확인입니다.")){createAutoBackup("전체 초기화 직전");localStorage.removeItem(STORAGE_KEY);location.reload()}}
+function resetEverything(){if(confirm("정말 모든 개인 데이터를 초기화할까요?")&&confirm("마지막 확인입니다.")){localStorage.removeItem(STORAGE_KEY);location.reload()}}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 
 function previewImage(e){const f=e.target.files[0];if(!f)return;const img=imagePreview;img.src=URL.createObjectURL(f);img.classList.remove("hidden");aiResult.classList.add("hidden")}
@@ -323,7 +333,7 @@ async function analyzeScreenshot(){
   const file=assetImage.files[0],url=workerUrl.value.trim().replace(/\/+$/,"");
   if(!file)return alert("먼저 스크린샷을 선택하세요.");
   if(!url)return alert("Cloudflare Worker 주소를 입력하세요.");
-  appData.workerUrl=url;persist("분석 서버 주소 저장");
+  appData.workerUrl=url;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
   aiLoading.classList.remove("hidden");aiResult.classList.add("hidden");
   try{
     const imageDataUrl=await fileToCompressedDataUrl(file);
@@ -369,7 +379,7 @@ function applyRecognizedAssets(){
       appData[id]=mode==="add"?(Number(appData[id])||0)+amount:amount;
     }
   }
-  persist("AI 인식 자산 반영");
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
   createHoldingInputs();populateInputs();renderAll();
   alert("확인한 자산을 반영했습니다.");
   window.scrollTo({top:document.querySelectorAll(".card")[0].offsetTop-10,behavior:"smooth"});
