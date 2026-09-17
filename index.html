@@ -270,23 +270,54 @@ function optimalBuyOnly(current,weights,cash){
   return buys;
 }
 
+function executableWholeShareBuys(current,weights,idealBuys,cash){
+  const fx=Number(marketDataGlobal?.fx_rate)||0;
+  const costs=portfolio.map(p=>{
+    const info=marketDataGlobal?.prices?.[p.id]||null;
+    const price=Number(info?.price)||0;
+    if(price<=0)return 0;
+    return info?.currency==="USD"?(fx>0?price*fx:0):price;
+  });
+  const qty=costs.map((c,i)=>c>0?Math.floor(Math.max(0,idealBuys[i])/c):0);
+  let spent=qty.reduce((sum,q,i)=>sum+q*costs[i],0);
+  let remaining=Math.max(0,cash-spent);
+  const finalTotal=current.reduce((a,b)=>a+b,0)+cash;
+  const targets=weights.map(w=>finalTotal*w);
+  const error=(q)=>q.reduce((sum,_,i)=>{
+    const after=current[i]+q[i]*costs[i];
+    const d=after-targets[i];
+    return sum+d*d;
+  },0);
+
+  // 남은 돈으로 살 수 있는 종목 중, 1주 추가 후 전체 목표오차가 가장 작은 종목을 반복 선택.
+  // 오차가 당장 줄지 않더라도 주문 가능한 현금을 최대한 사용하되, 매 단계 가장 덜 어긋나는 선택을 한다.
+  for(let guard=0;guard<10000;guard++){
+    let best=-1,bestError=Infinity;
+    for(let i=0;i<costs.length;i++){
+      if(costs[i]<=0||costs[i]>remaining+0.01)continue;
+      const test=qty.slice(); test[i]++;
+      const e=error(test);
+      if(e<bestError){bestError=e;best=i;}
+    }
+    if(best<0)break;
+    qty[best]++;
+    remaining-=costs[best];
+  }
+  const amounts=qty.map((q,i)=>q*costs[i]);
+  return {qty,amounts,remaining:Math.max(0,remaining),costs};
+}
+
 function renderRebalance(){
   const core=portfolio.reduce((x,p)=>x+(Number(appData.holdings[p.id])||0),0);
   const other=Number(appData.otherInvestment)||0;
   const rpBalance=Math.max(0,Number(appData.foreignRP)||0);
   const cashBalance=Math.max(0,Number(appData.cashKRW)||0);
-
   const rpRequested=Math.max(0,Number(appData.rebalanceRpDeploy)||0);
   const cashRequested=Math.max(0,Number(appData.rebalanceCashDeploy)||0);
   const newMoney=Math.max(0,Number(appData.rebalanceNewDeploy)||0);
-
-  const rpDeploy=Math.min(rpRequested,rpBalance);
-  const cashDeploy=Math.min(cashRequested,cashBalance);
-  const deploy=rpDeploy+cashDeploy+newMoney;
-  const rpRemaining=rpBalance-rpDeploy;
-  const cashRemaining=cashBalance-cashDeploy;
-  const total=core+deploy;
-  const mode=appData.rebalanceMode||"buyOnly";
+  const rpDeploy=Math.min(rpRequested,rpBalance), cashDeploy=Math.min(cashRequested,cashBalance);
+  const deploy=rpDeploy+cashDeploy+newMoney, rpRemaining=rpBalance-rpDeploy, cashRemaining=cashBalance-cashDeploy;
+  const total=core+deploy, mode=appData.rebalanceMode||"buyOnly";
 
   document.getElementById("rebalanceDeployTotal").innerText=money(deploy);
   document.getElementById("rebalanceRpRemainingText").innerText=money(rpRemaining);
@@ -297,60 +328,56 @@ function renderRebalance(){
   if(rpRequested>rpBalance)warnings.push(`외화RP는 보유액 ${money(rpBalance)}까지만 반영`);
   if(cashRequested>cashBalance)warnings.push(`원화현금은 보유액 ${money(cashBalance)}까지만 반영`);
 
+  const current=portfolio.map(p=>Number(appData.holdings[p.id])||0);
+  const weights=portfolio.map(p=>p.weight/100);
+  const idealBuys=mode==="buyOnly"?optimalBuyOnly(current,weights,deploy):null;
+  const executable=mode==="buyOnly"?executableWholeShareBuys(current,weights,idealBuys,deploy):null;
+  const actualSpent=executable?executable.amounts.reduce((a,b)=>a+b,0):deploy;
+  const orderRemaining=executable?executable.remaining:0;
+  const actualTotal=core+actualSpent;
+
   rebalanceSummary.innerHTML=
-    `<b>방식:</b> ${mode==="buyOnly"?"추가매수 — 기존 자산 매도 없음":"전체 리밸런싱 — 매도 허용"}<br>`+
+    `<b>방식:</b> ${mode==="buyOnly"?"추가매수 — 정수주 최적화":"전체 리밸런싱 — 매도 허용"}<br>`+
     `<b>현재 목표 포트폴리오:</b> ${money(core)}<br>`+
     `<b>투입:</b> 외화RP ${money(rpDeploy)} + 원화현금 ${money(cashDeploy)} + 신규자금 ${money(newMoney)}<br>`+
     `<b>추가 투자금 합계:</b> ${money(deploy)}<br>`+
-    `<b>투자 후 포트폴리오:</b> ${money(total)}<br>`+
+    (mode==="buyOnly"?`<b>예상 주문금액:</b> ${money(actualSpent)}<br><b>정수주 주문 후 잔액:</b> ${money(orderRemaining)}<br>`:"")+
+    `<b>투자 후 포트폴리오:</b> ${money(mode==="buyOnly"?actualTotal:total)}<br>`+
     `<b>기타 투자자산:</b> ${money(other)} (비중 계산 제외)`+
     (warnings.length?`<br><span class="negative"><b>⚠️ ${warnings.join(" / ")}</b></span>`:"");
-
-  const current=portfolio.map(p=>Number(appData.holdings[p.id])||0);
-  const weights=portfolio.map(p=>p.weight/100);
-  const buys=mode==="buyOnly"?optimalBuyOnly(current,weights,deploy):null;
 
   rebalanceTable.innerHTML="";
   portfolio.forEach((p,i)=>{
     const currentWeight=core>0?current[i]/core*100:0;
-    let diff,after;
-
-    if(mode==="buyOnly"){
-      diff=buys[i];
-      after=current[i]+diff;
-    }else{
-      after=total*weights[i];
-      diff=after-current[i];
-    }
-
-    const afterWeight=total>0?after/total*100:0;
     const priceInfo=marketDataGlobal?.prices?.[p.id]||null;
     const fx=Number(marketDataGlobal?.fx_rate)||0;
     const rawPrice=Number(priceInfo?.price)||0;
     const isUSD=priceInfo?.currency==="USD";
     const krwPerUnit=rawPrice>0?(isUSD&&fx>0?rawPrice*fx:rawPrice):0;
-    const qty=krwPerUnit>0?Math.floor(Math.abs(diff)/krwPerUnit):0;
-    const priceText=rawPrice>0?(isUSD?`$${rawPrice.toLocaleString(undefined,{maximumFractionDigits:2})}`:`${money(rawPrice)}`):"가격 없음";
+    let diff,after,qty;
+
+    if(mode==="buyOnly"){
+      diff=executable.amounts[i];
+      qty=executable.qty[i];
+      after=current[i]+diff;
+    }else{
+      after=total*weights[i];
+      diff=after-current[i];
+      qty=krwPerUnit>0?Math.floor(Math.abs(diff)/krwPerUnit):0;
+    }
+
+    const denom=mode==="buyOnly"?actualTotal:total;
+    const afterWeight=denom>0?after/denom*100:0;
+    const priceText=rawPrice>0?(isUSD?`$${rawPrice.toLocaleString(undefined,{maximumFractionDigits:2})}`:money(rawPrice)):"가격 없음";
     const usdAdjust=isUSD&&fx>0?Math.abs(diff)/fx:0;
     const action=Math.abs(diff)<=1?"-":isUSD&&fx>0
       ? `<span class="${diff>0?"buy":"sell"}">${diff>0?"+":"-"}$${usdAdjust.toLocaleString(undefined,{maximumFractionDigits:0})}</span>`
       : `<span class="${diff>0?"buy":"sell"}">${diff>0?"+":"-"}${money(Math.abs(diff))}</span>`;
     const qtyText=Math.abs(diff)<=1?"-":krwPerUnit>0?`${qty.toLocaleString()}${priceInfo?.unit||"주"}`:"-";
     const displayName=p.id==="brkb"?"BRK.B":p.id==="gold"?"금":p.name;
-
-    rebalanceTable.insertAdjacentHTML("beforeend",
-      `<tr>
-        <td><b>${displayName}</b></td>
-        <td>${p.weight}%</td>
-        <td>${currentWeight.toFixed(1)}%</td>
-        <td>${afterWeight.toFixed(1)}%</td>
-        <td>${action}</td>
-        <td>${priceText}</td>
-        <td><b>${qtyText}</b></td>
-      </tr>`);
+    rebalanceTable.insertAdjacentHTML("beforeend",`<tr><td><b>${displayName}</b></td><td>${p.weight}%</td><td>${currentWeight.toFixed(1)}%</td><td>${afterWeight.toFixed(1)}%</td><td>${action}</td><td>${priceText}</td><td><b>${qtyText}</b></td></tr>`);
   });
 }
-
 function saveS5TW(){const v=num("s5twInput");appData.s5tw=v;if(v>0&&v<=30)appData.s5twBottomDetected=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));updateSignal()}
 function getTrendMarketData(){
   // 새 형식(ndx/price) 우선. 첫 자동 업데이트 전에는 기존 data.json 형식도 임시 호환.
