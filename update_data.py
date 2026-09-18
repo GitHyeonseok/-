@@ -146,21 +146,39 @@ def get_market_data():
     except Exception as e:
         print(f"FX Fetch Error: {e}")
 
-    ndx_price = ndx_change = ndx_pct = sma_120 = sma_200 = 0
+    # 전략 기준: QQQ 종가 + 120/200일 이동평균
+    qqq_price = qqq_change = qqq_pct = sma_120 = sma_200 = 0
     try:
-        ndx_hist = yf.Ticker("^NDX").history(period="18mo")
-        closes = ndx_hist["Close"].dropna()
+        qqq_hist = yf.Ticker("QQQ").history(period="18mo", interval="1d")
+        closes = qqq_hist["Close"].dropna()
         if len(closes) >= 200:
             current_close = float(closes.iloc[-1])
             prev_close = float(closes.iloc[-2])
-            ndx_price = round(current_close, 2)
-            ndx_change = round(current_close - prev_close, 2)
+            qqq_price = round(current_close, 2)
+            qqq_change = round(current_close - prev_close, 2)
             if prev_close > 0:
-                ndx_pct = round((current_close - prev_close) / prev_close * 100, 2)
+                qqq_pct = round((current_close - prev_close) / prev_close * 100, 2)
             sma_120 = round(float(closes.rolling(120).mean().iloc[-1]), 2)
             sma_200 = round(float(closes.rolling(200).mean().iloc[-1]), 2)
+        else:
+            print(f"QQQ Fetch Error: not enough history ({len(closes)} rows)")
     except Exception as e:
-        print(f"NDX Fetch Error: {e}")
+        print(f"QQQ Fetch Error: {e}")
+
+    # VXN은 매매 필수조건이 아니라 QLD 변동성 위험을 보는 보조지표
+    vxn_price = vxn_change = vxn_pct = 0
+    try:
+        vxn_hist = yf.Ticker("^VXN").history(period="10d", interval="1d")
+        vxn_closes = vxn_hist["Close"].dropna()
+        if len(vxn_closes) >= 2:
+            current_vxn = float(vxn_closes.iloc[-1])
+            prev_vxn = float(vxn_closes.iloc[-2])
+            vxn_price = round(current_vxn, 2)
+            vxn_change = round(current_vxn - prev_vxn, 2)
+            if prev_vxn > 0:
+                vxn_pct = round((current_vxn - prev_vxn) / prev_vxn * 100, 2)
+    except Exception as e:
+        print(f"VXN Fetch Error: {e}")
 
     stamp = now_kst().strftime("%Y-%m-%d %H:%M:%S KST")
 
@@ -198,12 +216,17 @@ def get_market_data():
         "fx_rate": fx_rate,
         "fx_change": fx_change,
         "fx_pct": fx_pct,
-        "ndx": {
-            "price": ndx_price,
-            "change": ndx_change,
-            "pct": ndx_pct,
+        "qqq": {
+            "price": qqq_price,
+            "change": qqq_change,
+            "pct": qqq_pct,
             "sma_120": sma_120,
             "sma_200": sma_200,
+        },
+        "vxn": {
+            "price": vxn_price,
+            "change": vxn_change,
+            "pct": vxn_pct,
         },
         "prices": prices,
     }
