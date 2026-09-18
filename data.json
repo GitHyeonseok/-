@@ -1,14 +1,19 @@
 {
-    "updated_at": "2026-09-18 07:30:14 KST",
-    "fx_rate": 1379.95,
-    "fx_change": 16.38,
-    "fx_pct": 1.2,
-    "ndx": {
-        "price": 29446.98,
-        "change": 501.92,
+    "updated_at": "2026-09-18 14:01:34 KST",
+    "fx_rate": 1385.47,
+    "fx_change": 8.87,
+    "fx_pct": 0.64,
+    "qqq": {
+        "price": 716.92,
+        "change": 12.2,
         "pct": 1.73,
-        "sma_120": 28575.52,
-        "sma_200": 27208.77
+        "sma_120": 694.94,
+        "sma_200": 661.24
+    },
+    "vxn": {
+        "price": 19.96,
+        "change": -2.48,
+        "pct": -11.05
     },
     "prices": {
         "qld": {
@@ -17,7 +22,7 @@
             "price": 89.94,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 07:30:14 KST"
+            "updated_at": "2026-09-18 14:01:34 KST"
         },
         "qqq": {
             "ticker": "QQQ",
@@ -25,7 +30,7 @@
             "price": 716.87,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 07:30:14 KST"
+            "updated_at": "2026-09-18 14:01:34 KST"
         },
         "voo": {
             "ticker": "VOO",
@@ -33,7 +38,7 @@
             "price": 701.07,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 07:30:14 KST"
+            "updated_at": "2026-09-18 14:01:34 KST"
         },
         "brkb": {
             "ticker": "BRK-B",
@@ -41,7 +46,7 @@
             "price": 509.06,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 07:30:14 KST"
+            "updated_at": "2026-09-18 14:01:34 KST"
         },
         "visa": {
             "ticker": "V",
@@ -49,19 +54,19 @@
             "price": 369.935,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-18 07:30:14 KST"
+            "updated_at": "2026-09-18 14:01:34 KST"
         },
         "gold": {
             "ticker": "04020000",
             "name": "금 99.99_1kg",
-            "price": 191150.0,
+            "price": 191970.0,
             "currency": "KRW",
             "unit": "g",
-            "market_date": "20260916",
-            "change": 3150.0,
-            "pct": 1.68,
+            "market_date": "20260917",
+            "change": 820.0,
+            "pct": 0.43,
             "status": "ok",
-            "updated_at": "2026-09-18 07:30:14 KST"
+            "updated_at": "2026-09-18 14:01:34 KST"
         }
     }
 }
