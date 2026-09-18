@@ -1,60 +1,60 @@
 {
-    "updated_at": "2026-09-19 02:20:06 KST",
-    "fx_rate": 1385.44,
-    "fx_change": 8.84,
-    "fx_pct": 0.64,
+    "updated_at": "2026-09-19 05:04:11 KST",
+    "fx_rate": 1385.48,
+    "fx_change": 8.88,
+    "fx_pct": 0.65,
     "qqq": {
-        "price": 717.16,
-        "change": 0.24,
-        "pct": 0.03,
-        "sma_120": 696.24,
-        "sma_200": 661.75
+        "price": 721.45,
+        "change": 4.53,
+        "pct": 0.63,
+        "sma_120": 696.27,
+        "sma_200": 661.77
     },
     "vxn": {
-        "price": 20.14,
-        "change": 0.18,
-        "pct": 0.9
+        "price": 19.4,
+        "change": -0.56,
+        "pct": -2.81
     },
     "prices": {
         "qld": {
             "ticker": "QLD",
             "name": "QLD",
-            "price": 90.0,
+            "price": 91.02,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-19 02:20:06 KST"
+            "updated_at": "2026-09-19 05:04:11 KST"
         },
         "qqq": {
             "ticker": "QQQ",
             "name": "QQQ",
-            "price": 717.16,
+            "price": 721.36,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-19 02:20:06 KST"
+            "updated_at": "2026-09-19 05:04:11 KST"
         },
         "voo": {
             "ticker": "VOO",
             "name": "VOO",
-            "price": 699.7998,
+            "price": 701.85,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-19 02:20:06 KST"
+            "updated_at": "2026-09-19 05:04:11 KST"
         },
         "brkb": {
             "ticker": "BRK-B",
             "name": "BRK.B",
-            "price": 508.54,
+            "price": 509.67,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-19 02:20:06 KST"
+            "updated_at": "2026-09-19 05:04:11 KST"
         },
         "visa": {
             "ticker": "V",
             "name": "Visa",
-            "price": 369.615,
+            "price": 367.57,
             "currency": "USD",
             "unit": "주",
-            "updated_at": "2026-09-19 02:20:06 KST"
+            "updated_at": "2026-09-19 05:04:11 KST"
         },
         "gold": {
             "ticker": "04020000",
@@ -66,7 +66,7 @@
             "change": 820.0,
             "pct": 0.43,
             "status": "ok",
-            "updated_at": "2026-09-19 02:20:06 KST"
+            "updated_at": "2026-09-19 05:04:11 KST"
         }
     }
 }
